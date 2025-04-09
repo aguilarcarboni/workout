@@ -1,132 +1,69 @@
-//
-//  WorkoutView.swift
-//  workouts
-//
-//  Created by Andrés on 5/4/2025.
-//
-
 import SwiftUI
 import WorkoutKit
 
 struct WorkoutView: View {
     let workout: CustomWorkout
-    @State private var currentPhase: String = "Ready to start"
+    let scheduledWorkout: ScheduledWorkoutPlan
+    @State private var currentPhase: String = "Warmup"
+    @State private var currentPhaseIndex: Int = 0
     @State private var timeRemaining: TimeInterval = 0
-    @State private var isRunning: Bool = false
+    @State private var isRunning: Bool = true
+    @State private var isWorkoutComplete: Bool = false
     @Environment(\.dismiss) private var dismiss
     
+    // Workout phases for tracking progress
+    @State private var workoutPhases: [WorkoutPhase] = []
+    
+    struct WorkoutPhase {
+        let name: String
+        let duration: TimeInterval
+        let color: Color
+        let icon: String
+    }
+    
     var body: some View {
-        VStack(spacing: 20) {
-            Text(workout.displayName!)
-                .font(.largeTitle)
-                .padding(.bottom, 10)
+        ZStack {
+            // Background gradient
+            LinearGradient(
+                gradient: Gradient(colors: [
+                    Color(.systemBackground),
+                    Color(.systemBackground).opacity(0.8)
+                ]),
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
             
-            Text("Current Phase: \(currentPhase)")
-                .font(.title2)
-            
-            if timeRemaining > 0 {
-                Text(timeString(from: timeRemaining))
-                    .font(.system(size: 70, weight: .bold, design: .rounded))
-                    .foregroundStyle(.blue)
-                    .padding()
-            }
-            
-            workoutDetailsView
-            
-            Button(isRunning ? "Pause Workout" : "Start Workout") {
-                Task {
-                    await scheduleWorkout()
-                    dismiss()
-                }
-            }
-            .buttonStyle(.borderedProminent)
-            .padding()
-        }
-        .padding()
-    }
-    
-    private var workoutDetailsView: some View {
-        VStack(alignment: .leading, spacing: 15) {
-            GroupBox("Workout Structure") {
-                VStack(alignment: .leading, spacing: 8) {
-                    if let warmup = workout.warmup {
-                        phaseRow(label: "Warmup", duration: goalDuration(warmup.goal))
-                    }
+            VStack(spacing: 25) {
+                // Workout Header
+                VStack(spacing: 8) {
+                    Text(workout.displayName ?? "Workout")
+                        .font(.system(size: 34, weight: .bold, design: .rounded))
+                        .foregroundStyle(.primary)
                     
-                    ForEach(Array(workout.blocks.enumerated()), id: \.offset) { index, block in
-                        if let intervalBlock = block as? IntervalBlock {
-                            phaseRow(label: "Block \(index + 1)", duration: totalBlockDuration(intervalBlock))
-                        }
-                    }
+                    Text(currentPhase)
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
                     
-                    if let cooldown = workout.cooldown {
-                        phaseRow(label: "Cooldown", duration: goalDuration(cooldown.goal))
-                    }
+                    Text("Scheduled for: \(formattedDate)")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 4)
                 }
-                .padding(.vertical, 5)
+                .padding(.top)
             }
-        }
-        .frame(maxWidth: .infinity)
-    }
-    
-    private func phaseRow(label: String, duration: TimeInterval) -> some View {
-        HStack {
-            Text(label)
-                .fontWeight(.medium)
-            Spacer()
-            Text(timeString(from: duration))
-                .foregroundStyle(.secondary)
+            .padding(.vertical, 20)
         }
     }
     
-    private func goalDuration(_ goal: WorkoutGoal) -> TimeInterval {
-        switch goal {
-        case .time(let duration, _):
-            return duration
-        default:
-            return 0
-        }
-    }
-    
-    private func totalBlockDuration(_ block: IntervalBlock) -> TimeInterval {
-        let singleIterationTime = block.steps.reduce(0) { result, step in
-            if let intervalStep = step as? IntervalStep, 
-               case .time(let duration, _) = intervalStep.step.goal {
-                return result + duration
-            }
-            return result
-        }
-        return singleIterationTime * Double(block.iterations)
-    }
-    
-    private func timeString(from timeInterval: TimeInterval) -> String {
-        let minutes = Int(timeInterval) / 60
-        let seconds = Int(timeInterval) % 60
-        return String(format: "%02d:%02d", minutes, seconds)
-    }
-    
-    // Simulates a workout for preview purposes
-    private func simulateWorkout() {
-        // This would be replaced with actual workout tracking logic
-        currentPhase = "Warmup"
-        if let warmup = workout.warmup, case .time(let duration, _) = warmup.goal {
-            timeRemaining = duration
-        }
-    }
-    
-    private func scheduleWorkout() async {
-        do {
-            let workoutPlanWorkout = WorkoutPlan.Workout.custom(workout)
-            let plan = WorkoutPlan(workoutPlanWorkout, id: UUID())
-            
-            var dateComponents = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: Date())
-            // Add a small buffer (1 minute) to ensure it's scheduled for the immediate future
-            dateComponents.minute! += 1
-            
-            try await WorkoutScheduler.shared.schedule(plan, at: dateComponents)
-            print("Workout scheduled successfully")
-        } catch {
-            print("Failed to schedule workout: \(error)")
+    private var formattedDate: String {
+        if let date = Calendar.current.date(from: scheduledWorkout.date) {
+            let formatter = DateFormatter()
+            formatter.dateStyle = .medium
+            formatter.timeStyle = .short
+            return formatter.string(from: date)
+        } else {
+            return "Unknown date"
         }
     }
 }
@@ -135,8 +72,10 @@ struct WorkoutView: View {
     // Create a sample workout for preview
     let warmupStep = WorkoutStep(goal: .time(120, .seconds))
     let benchPressStep = WorkoutStep(goal: .time(60, .seconds))
+    let restStep = WorkoutStep(goal: .time(30, .seconds))
     let benchPressInterval = IntervalStep(.work, step: benchPressStep)
-    let benchPressBlock = IntervalBlock(steps:[benchPressInterval], iterations: 3)
+    let restInterval = IntervalStep(.recovery, step: restStep)
+    let benchPressBlock = IntervalBlock(steps:[benchPressInterval, restInterval], iterations: 3)
     let cooldownStep = WorkoutStep(goal: .time(60, .seconds))
     
     let workout = CustomWorkout(
@@ -148,5 +87,10 @@ struct WorkoutView: View {
         cooldown: cooldownStep
     )
     
-    return WorkoutView(workout: workout)
+    let workoutPlanWorkout = WorkoutPlan.Workout.custom(workout)
+    let plan = WorkoutPlan(workoutPlanWorkout, id: UUID())
+    let dateComponents = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: Date())
+    let scheduledWorkout = ScheduledWorkoutPlan(plan, date: dateComponents)
+    
+    return WorkoutView(workout: workout, scheduledWorkout: scheduledWorkout)
 } 

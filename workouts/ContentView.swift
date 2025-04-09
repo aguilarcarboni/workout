@@ -4,42 +4,16 @@ import HealthKit
 
 struct ContentView: View {
 
-    @State private var customWorkout: CustomWorkout?
-    @State private var workoutPlan: WorkoutPlan?
     @State private var selectedWorkout: CustomWorkout?
     @State private var workouts: [CustomWorkout] = []
     
     var body: some View {
         TabView {
-            // First tab - Workout view
-            NavigationView {
-                VStack {
-
-                    Image(systemName: "figure.strengthtraining.traditional")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 100, height: 100)
-                        .foregroundColor(Color("AccentColor"))
-                    
-                    Text("Workouts")
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
-                        
-                    Text("Schedule your workouts now")
-                        .font(.subheadline)
-                        .foregroundColor(.gray)
-                }
-                .padding()
-                .sheet(item: $selectedWorkout) { workout in
-                    WorkoutView(workout: workout)
-                }
-            }
+            HomeView()
             .tabItem {
                 Label("Home", systemImage: "house.fill")
             }
 
-                        
-            // Second tab - New Workout
             NavigationView {
                 VStack {
                     List {
@@ -47,20 +21,24 @@ struct ContentView: View {
                             Button(action: {
                                 selectedWorkout = workout
                             }) {
-                                HStack {
-                                    Text(workout.displayName!)
-                                    Spacer()
-                                    Image(systemName: "chevron.right")
-                                        .foregroundColor(.gray)
-                                }
+                                Text(workout.displayName!)
                             }
+                            .buttonStyle(.plain)
                         }
                     }
                 }
-                .navigationTitle("All Workouts")
+                .sheet(item: $selectedWorkout) { workout in
+                    WorkoutPreviewView(workout: workout)
+                }
+                .navigationTitle("Workouts")
             }
             .tabItem {
-                Label("New", systemImage: "plus")
+                Label("Workout", systemImage: "figure.strengthtraining.traditional")
+            }
+            
+            ScheduledWorkoutsView()
+            .tabItem {
+                Label("Scheduled", systemImage: "clock")
             }
             
             // Third tab - Settings
@@ -72,8 +50,8 @@ struct ContentView: View {
         }
         .task {
             await requestHealthKitAuthorization()
-            if workoutPlan == nil {
-                await createWorkout()
+            if workouts.count == 0 {
+                await createWorkouts()
             }
         }
     }
@@ -90,46 +68,138 @@ struct ContentView: View {
             print("HealthKit authorization failed: \(error)")
         }
     }
-    
-    private func createWorkout() async {
-        let warmupStep = WorkoutStep(goal: .time(120, .seconds))
-        let benchPressStep = WorkoutStep(goal: .time(60, .seconds))
-        let benchPressInterval = IntervalStep(.work, step: benchPressStep)
-        let benchPressBlock = IntervalBlock(steps: [benchPressInterval], iterations: 3)
-        let cooldownStep = WorkoutStep(goal: .time(60, .seconds))
-        
-        // Create sample workouts
-        let benchPressWorkout = CustomWorkout(
-            activity: .functionalStrengthTraining,
+
+    private func createWorkouts() async {
+        await createUpperBodyStrengthWorkout()
+        await createCardioWorkout()
+        await createLowerBodyStrengthWorkout()
+    }
+
+    private func createCardioWorkout() async {
+        // Warmup
+        let warmupStep = WorkoutStep(goal: .time(300, .seconds), displayName: "Cycling")
+
+        // Squats
+        let runningStep = WorkoutStep(goal: .time(1500, .seconds), alert: .speed(7.5, unit: .milesPerHour), displayName: "Running")
+        let runningInterval = IntervalStep(.work, step: runningStep)
+        let runningBlock = IntervalBlock(steps: [runningInterval], iterations: 1)
+
+        // Cooldown
+        let cooldownStep = WorkoutStep(goal: .time(600, .seconds), displayName: "Cooldown")
+
+        let cardioWorkout = CustomWorkout(
+            activity: .running,
             location: .indoor,
-            displayName: "Bench Press Workout",
+            displayName: "Cardio",
             warmup: warmupStep,
-            blocks: [benchPressBlock],
+            blocks: [runningBlock],
             cooldown: cooldownStep
         )
 
-        self.customWorkout = benchPressWorkout
-        self.workouts = [benchPressWorkout]
+        self.workouts.append(cardioWorkout)
+    }
+
+    private func createLowerBodyStrengthWorkout() async {
+        // Warmup
+        let warmupStep = WorkoutStep(goal: .time(300, .seconds), displayName: "Cycling")
+
+        // Squats
+        let squatsStep = WorkoutStep(goal: .open, displayName: "Barbell Back Squats")
+        let squatsInterval = IntervalStep(.work, step: squatsStep)
+        let squatsBlock = IntervalBlock(steps: [squatsInterval], iterations: 3)
+
+        // Deadlifts
+        let deadliftsStep = WorkoutStep(goal: .open, displayName: "Barbell Deadlifts")
+        let deadliftsInterval = IntervalStep(.work, step: deadliftsStep)
+        let deadliftsBlock = IntervalBlock(steps: [deadliftsInterval], iterations: 3)
+
+        // Calf Raises
+        let calfRaisesStep = WorkoutStep(goal: .open, displayName: "Single-Leg Calf Raises")
+        let calfRaisesInterval = IntervalStep(.work, step: calfRaisesStep)
+        let calfRaisesBlock = IntervalBlock(steps: [calfRaisesInterval], iterations: 3)
+
+        // L-Sit Hold
+        let lSitHoldStep = WorkoutStep(goal: .time(30, .seconds), displayName: "L-Sit Hold")
+        let lSitHoldRestStep = WorkoutStep(goal: .time(30, .seconds), displayName: "Rest")
+        let lSitHoldInterval = IntervalStep(.work, step: lSitHoldStep)
+        let lSitHoldRecoveryInterval = IntervalStep(.recovery, step: lSitHoldRestStep)
+        let lSitHoldBlock = IntervalBlock(steps: [lSitHoldInterval, lSitHoldRecoveryInterval], iterations: 3)
+
+        // Hanging Leg Raises       
+        let hangingLegRaisesStep = WorkoutStep(goal: .open, displayName: "Hanging Leg Raises")
+        let hangingLegRaisesInterval = IntervalStep(.work, step: hangingLegRaisesStep)
+        let hangingLegRaisesBlock = IntervalBlock(steps: [hangingLegRaisesInterval], iterations: 3)
+
+        // Cooldown
+        let cooldownStep = WorkoutStep(goal: .time(600, .seconds), displayName: "Cooldown")
+
+        let lowerBodyStrengthWorkout = CustomWorkout(
+            activity: .traditionalStrengthTraining,
+            location: .indoor,
+            displayName: "Lower Body Strength",
+            warmup: warmupStep,
+            blocks: [squatsBlock, deadliftsBlock, calfRaisesBlock, lSitHoldBlock, hangingLegRaisesBlock],
+            cooldown: cooldownStep
+        )
+
+        self.workouts.append(lowerBodyStrengthWorkout)
+    }
+    
+    private func createUpperBodyStrengthWorkout() async {
+
+        // Warmup
+        let warmupStep = WorkoutStep(goal: .time(300, .seconds), displayName: "Warmup")
+
+        // Calisthenics
+        let pullUpsStep = WorkoutStep(goal: .open, displayName: "Pull Ups")
+        let pullUpsInterval = IntervalStep(.work, step: pullUpsStep)
+        let dipsStep = WorkoutStep(goal: .open, displayName: "Dips")
+        let dipsInterval = IntervalStep(.work, step: dipsStep)
+        let calisthenicsBlock = IntervalBlock(steps: [pullUpsInterval, dipsInterval], iterations: 2)
         
-        do {
-            let workout = WorkoutPlan.Workout.custom(benchPressWorkout)
-            let plan = WorkoutPlan(workout, id: UUID())
-            self.workoutPlan = plan
-            
-            print("Workout created successfully")
-        }
+        // Lat Pulldown
+        let latPulldownStep = WorkoutStep(goal: .open, displayName: "Lat Pulldown")
+        let latPullDownInterval = IntervalStep(.work, step: latPulldownStep)
+        let latPulldownBlock = IntervalBlock(steps: [latPullDownInterval], iterations: 3)
+
+        // Bench Press
+        let benchPressStep = WorkoutStep(goal: .open, displayName: "Bench Press") 
+        let benchPressInterval = IntervalStep(.work, step: benchPressStep)
+        let benchPressBlock = IntervalBlock(steps: [benchPressInterval], iterations: 3)
+
+        // Pull Back
+        let pullbackStep = WorkoutStep(goal: .open, displayName: "Pull Back")
+        let pullbackInterval = IntervalStep(.work, step: pullbackStep)
+        let pullbackBlock = IntervalBlock(steps: [pullbackInterval], iterations: 3)
+
+        // Chest Flys
+        let chestFlyStep = WorkoutStep(goal: .open, displayName: "Chest Flys")
+        let chestFlyInterval = IntervalStep(.work, step: chestFlyStep)
+        let chestFlyBlock = IntervalBlock(steps: [chestFlyInterval], iterations: 3)
+
+        // Cooldown
+        let cooldownStep = WorkoutStep(goal: .time(600, .seconds), displayName: "Cooldown")
+        
+        // Create Upper Body Strength Workout
+        let upperBodyStrengthWorkout = CustomWorkout(
+            activity: .traditionalStrengthTraining,
+            location: .indoor,
+            displayName: "Upper Body Strength",
+            warmup: warmupStep,
+            blocks: [calisthenicsBlock, latPulldownBlock, benchPressBlock, pullbackBlock, chestFlyBlock],
+            cooldown: cooldownStep
+        )
+        
+        self.workouts.append(upperBodyStrengthWorkout)
+
     }
 }
 
 // Extension to make CustomWorkout conform to Identifiable
-extension CustomWorkout: Identifiable {
+extension CustomWorkout: @retroactive Identifiable {
     public var id: String {
         return UUID().uuidString
     }
-}
-
-#Preview {
-    ContentView()
 }
 
 #Preview {
