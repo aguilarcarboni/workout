@@ -100,35 +100,40 @@ struct ContentView: View {
     }
 
     private func createLowerBodyStrengthWorkout() async {
+        
+        // Initialize Recovery Steo
+        let recoveryStep = WorkoutStep(goal: .open, displayName: "Rest")
+        let recoveryInterval = IntervalStep(.recovery, step: recoveryStep)
+        
         // Warmup
         let warmupStep = WorkoutStep(goal: .time(300, .seconds), displayName: "Cycling")
 
         // Squats
         let squatsStep = WorkoutStep(goal: .open, displayName: "Barbell Back Squats")
         let squatsInterval = IntervalStep(.work, step: squatsStep)
-        let squatsBlock = IntervalBlock(steps: [squatsInterval], iterations: 3)
+        let squatsBlock = IntervalBlock(steps: [squatsInterval, recoveryInterval], iterations: 3)
 
         // Deadlifts
         let deadliftsStep = WorkoutStep(goal: .open, displayName: "Barbell Deadlifts")
         let deadliftsInterval = IntervalStep(.work, step: deadliftsStep)
-        let deadliftsBlock = IntervalBlock(steps: [deadliftsInterval], iterations: 3)
+        let deadliftsBlock = IntervalBlock(steps: [deadliftsInterval, recoveryInterval], iterations: 3)
 
         // Calf Raises
         let calfRaisesStep = WorkoutStep(goal: .open, displayName: "Single-Leg Calf Raises")
         let calfRaisesInterval = IntervalStep(.work, step: calfRaisesStep)
-        let calfRaisesBlock = IntervalBlock(steps: [calfRaisesInterval], iterations: 3)
+        let calfRaisesBlock = IntervalBlock(steps: [calfRaisesInterval,recoveryInterval], iterations: 3)
 
         // L-Sit Hold
         let lSitHoldStep = WorkoutStep(goal: .time(30, .seconds), displayName: "L-Sit Hold")
-        let lSitHoldRestStep = WorkoutStep(goal: .time(30, .seconds), displayName: "Rest")
+        
         let lSitHoldInterval = IntervalStep(.work, step: lSitHoldStep)
-        let lSitHoldRecoveryInterval = IntervalStep(.recovery, step: lSitHoldRestStep)
-        let lSitHoldBlock = IntervalBlock(steps: [lSitHoldInterval, lSitHoldRecoveryInterval], iterations: 3)
+        
+        let lSitHoldBlock = IntervalBlock(steps: [lSitHoldInterval, recoveryInterval], iterations: 3)
 
         // Hanging Leg Raises       
         let hangingLegRaisesStep = WorkoutStep(goal: .open, displayName: "Hanging Leg Raises")
         let hangingLegRaisesInterval = IntervalStep(.work, step: hangingLegRaisesStep)
-        let hangingLegRaisesBlock = IntervalBlock(steps: [hangingLegRaisesInterval], iterations: 3)
+        let hangingLegRaisesBlock = IntervalBlock(steps: [hangingLegRaisesInterval, recoveryInterval], iterations: 3)
 
         // Cooldown
         let cooldownStep = WorkoutStep(goal: .time(600, .seconds), displayName: "Cooldown")
@@ -146,6 +151,10 @@ struct ContentView: View {
     }
     
     private func createUpperBodyStrengthWorkout() async {
+        
+        // Initialize Recovery Steo
+        let recoveryStep = WorkoutStep(goal: .open, displayName: "Rest")
+        let recoveryInterval = IntervalStep(.recovery, step: recoveryStep)
 
         // Warmup
         let warmupStep = WorkoutStep(goal: .time(300, .seconds), displayName: "Warmup")
@@ -155,27 +164,27 @@ struct ContentView: View {
         let pullUpsInterval = IntervalStep(.work, step: pullUpsStep)
         let dipsStep = WorkoutStep(goal: .open, displayName: "Dips")
         let dipsInterval = IntervalStep(.work, step: dipsStep)
-        let calisthenicsBlock = IntervalBlock(steps: [pullUpsInterval, dipsInterval], iterations: 2)
+        let calisthenicsBlock = IntervalBlock(steps: [pullUpsInterval, recoveryInterval, dipsInterval, recoveryInterval], iterations: 2)
         
         // Lat Pulldown
         let latPulldownStep = WorkoutStep(goal: .open, displayName: "Lat Pulldown")
         let latPullDownInterval = IntervalStep(.work, step: latPulldownStep)
-        let latPulldownBlock = IntervalBlock(steps: [latPullDownInterval], iterations: 3)
+        let latPulldownBlock = IntervalBlock(steps: [latPullDownInterval, recoveryInterval], iterations: 3)
 
         // Bench Press
         let benchPressStep = WorkoutStep(goal: .open, displayName: "Bench Press") 
         let benchPressInterval = IntervalStep(.work, step: benchPressStep)
-        let benchPressBlock = IntervalBlock(steps: [benchPressInterval], iterations: 3)
+        let benchPressBlock = IntervalBlock(steps: [benchPressInterval, recoveryInterval], iterations: 3)
 
         // Pull Back
         let pullbackStep = WorkoutStep(goal: .open, displayName: "Pull Back")
         let pullbackInterval = IntervalStep(.work, step: pullbackStep)
-        let pullbackBlock = IntervalBlock(steps: [pullbackInterval], iterations: 3)
+        let pullbackBlock = IntervalBlock(steps: [pullbackInterval, recoveryInterval], iterations: 3)
 
         // Chest Flys
         let chestFlyStep = WorkoutStep(goal: .open, displayName: "Chest Flys")
         let chestFlyInterval = IntervalStep(.work, step: chestFlyStep)
-        let chestFlyBlock = IntervalBlock(steps: [chestFlyInterval], iterations: 3)
+        let chestFlyBlock = IntervalBlock(steps: [chestFlyInterval, recoveryInterval], iterations: 3)
 
         // Cooldown
         let cooldownStep = WorkoutStep(goal: .time(600, .seconds), displayName: "Cooldown")
