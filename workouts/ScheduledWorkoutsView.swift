@@ -92,8 +92,9 @@ struct ScheduledWorkoutRow: View {
                     onRemove()
                 }
                 .buttonStyle(.plain)
-                .background(Color.red)
                 .padding(15)
+                .background(Color.red)
+                .cornerRadius(10)
             }
             .padding(.top, 4)
         }
