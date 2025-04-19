@@ -106,16 +106,6 @@ struct WorkoutView: View {
             // Workout details
             workoutDetailsView(for: workout)
             
-            // Progress indicator
-            HStack {
-                Circle()
-                    .fill(index < currentWorkoutIndex ? Color.green : (index == currentWorkoutIndex ? Color.blue : Color.gray))
-                    .frame(width: 12, height: 12)
-                
-                Text(index < currentWorkoutIndex ? "Completed" : (index == currentWorkoutIndex ? "Current" : "Upcoming"))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
         }
         .padding()
         .background(Color(.secondarySystemBackground))
