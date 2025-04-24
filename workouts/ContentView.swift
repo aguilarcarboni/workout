@@ -140,12 +140,16 @@ struct ContentView: View {
     }
 
     private func createLowerBodyStrengthWorkoutSequence() async -> WorkoutSequence {
-        // Initialize Recovery Step
+        // Initialize Recovery Steps
         let recoveryStep = WorkoutStep(goal: .open, displayName: "Rest")
         let recoveryInterval = IntervalStep(.recovery, step: recoveryStep)
 
+        let timedRecoveryStep = WorkoutStep(goal: .time(30, .seconds), displayName: "Recovery")
+        let timedRecoveryInterval = IntervalStep(.recovery, step: timedRecoveryStep)
+
+
         // Warmup
-        let warmupStep = WorkoutStep(goal: .time(300, .seconds), displayName: "Warmup")
+        let warmupStep = WorkoutStep(goal: .time(300, .seconds), displayName: "Dynamic Warmup")
         let warmupInterval = IntervalStep(.work, step: warmupStep)
         let warmupBlock = IntervalBlock(steps: [warmupInterval], iterations: 1)
         let warmupWorkout = CustomWorkout(
@@ -156,9 +160,9 @@ struct ContentView: View {
         )
 
         // Cycling Warmup
-        let cyclingStep = WorkoutStep(goal: .time(600, .seconds), alert: .heartRate(zone: 2), displayName: "Cycling")
+        let cyclingStep = WorkoutStep(goal: .time(300, .seconds), alert: .heartRate(zone: 2), displayName: "Cycling")
         let cyclingInterval = IntervalStep(.work, step: cyclingStep)
-        let cyclingBlock = IntervalBlock(steps: [cyclingInterval, recoveryInterval], iterations: 1)
+        let cyclingBlock = IntervalBlock(steps: [cyclingInterval], iterations: 1)
         let cyclingWorkout = CustomWorkout(
             activity: .cycling,
             location: .indoor,
@@ -167,33 +171,37 @@ struct ContentView: View {
         )
 
         // Lower Body Strength Workout
+        let abductorsStep = WorkoutStep(goal: .open, displayName: "Abductors")
+        let abductorsInterval = IntervalStep(.work, step: abductorsStep)
+        let abductorsBlock = IntervalBlock(steps: [abductorsInterval, recoveryInterval], iterations: 3)
+        
         let squatsStep = WorkoutStep(goal: .open, displayName: "Barbell Back Squats")
         let squatsInterval = IntervalStep(.work, step: squatsStep)
-        let squatsBlock = IntervalBlock(steps: [squatsInterval, recoveryInterval], iterations: 2)
+        let squatsBlock = IntervalBlock(steps: [squatsInterval, recoveryInterval], iterations: 3)
 
         let deadliftsStep = WorkoutStep(goal: .open, displayName: "Barbell Deadlifts")
         let deadliftsInterval = IntervalStep(.work, step: deadliftsStep)
-        let deadliftsBlock = IntervalBlock(steps: [deadliftsInterval, recoveryInterval], iterations: 2)
+        let deadliftsBlock = IntervalBlock(steps: [deadliftsInterval, recoveryInterval], iterations: 3)
 
         let calfRaisesStep = WorkoutStep(goal: .open, displayName: "Single-Leg Calf Raises")
         let calfRaisesInterval = IntervalStep(.work, step: calfRaisesStep)
-        let calfRaisesBlock = IntervalBlock(steps: [calfRaisesInterval,recoveryInterval], iterations: 2)
+        let calfRaisesBlock = IntervalBlock(steps: [calfRaisesInterval,recoveryInterval], iterations: 3)
 
         let lowerBodyStrengthWorkout = CustomWorkout(
             activity: .traditionalStrengthTraining,
             location: .indoor,
             displayName: "Lower Body Strength",
-            blocks: [squatsBlock, deadliftsBlock, calfRaisesBlock],
+            blocks: [abductorsBlock, squatsBlock, deadliftsBlock, calfRaisesBlock],
         )
         
         // Core Workout
         let lSitHoldStep = WorkoutStep(goal: .time(30, .seconds), displayName: "L-Sit Hold")
         let lSitHoldInterval = IntervalStep(.work, step: lSitHoldStep)
         
-        let hangingLegRaisesStep = WorkoutStep(goal: .open, displayName: "Hanging Leg Raises")
+        let hangingLegRaisesStep = WorkoutStep(goal: .time(30, .seconds), displayName: "Hanging Leg Raises")
         let hangingLegRaisesInterval = IntervalStep(.work, step: hangingLegRaisesStep)
-        
-        let coreBlock = IntervalBlock(steps: [lSitHoldInterval, recoveryInterval, hangingLegRaisesInterval, recoveryInterval], iterations: 2)
+
+        let coreBlock = IntervalBlock(steps: [lSitHoldInterval, timedRecoveryInterval, hangingLegRaisesInterval, timedRecoveryInterval], iterations: 2)
 
         let coreWorkout = CustomWorkout(
             activity: .coreTraining,
@@ -203,7 +211,7 @@ struct ContentView: View {
         )
 
         // Cooldown
-        let cooldownStep = WorkoutStep(goal: .time(300, .seconds), displayName: "Cooldown")
+        let cooldownStep = WorkoutStep(goal: .time(300, .seconds), displayName: "Stretching")
         let cooldownInterval = IntervalStep(.work, step: cooldownStep)
         let cooldownBlock = IntervalBlock(steps: [cooldownInterval], iterations: 1)
         let cooldownWorkout = CustomWorkout(
@@ -224,9 +232,12 @@ struct ContentView: View {
         // Initialize Recovery Step
         let recoveryStep = WorkoutStep(goal: .open, displayName: "Rest")
         let recoveryInterval = IntervalStep(.recovery, step: recoveryStep)
-        
+
+        let timedRecoveryStep = WorkoutStep(goal: .time(30, .seconds), displayName: "Recovery")
+        let timedRecoveryInterval = IntervalStep(.recovery, step: timedRecoveryStep)
+
         // Warmup
-        let warmupStep = WorkoutStep(goal: .time(300, .seconds), displayName: "Warmup")
+        let warmupStep = WorkoutStep(goal: .time(300, .seconds), displayName: "Dynamic Warmup")
         let warmupInterval = IntervalStep(.work, step: warmupStep)
         let warmupBlock = IntervalBlock(steps: [warmupInterval], iterations: 1)
         let warmupWorkout = CustomWorkout(
@@ -237,9 +248,9 @@ struct ContentView: View {
         )
         
         // Cycling Warmup
-        let cyclingStep = WorkoutStep(goal: .time(600, .seconds), alert: .heartRate(zone: 2), displayName: "Cycling")
+        let cyclingStep = WorkoutStep(goal: .time(300, .seconds), alert: .heartRate(zone: 2), displayName: "Cycling")
         let cyclingInterval = IntervalStep(.work, step: cyclingStep)
-        let cyclingBlock = IntervalBlock(steps: [cyclingInterval, recoveryInterval], iterations: 1)
+        let cyclingBlock = IntervalBlock(steps: [cyclingInterval], iterations: 1)
         let cyclingWorkout = CustomWorkout(
             activity: .cycling,
             location: .indoor,
@@ -250,7 +261,7 @@ struct ContentView: View {
         // Running Workout
         let runningStep = WorkoutStep(goal: .time(1800, .seconds), alert: .speed(6.5, unit: .kilometersPerHour), displayName: "Running")
         let runningInterval = IntervalStep(.work, step: runningStep)
-        let runningBlock = IntervalBlock(steps: [runningInterval, recoveryInterval], iterations: 1)
+        let runningBlock = IntervalBlock(steps: [runningInterval], iterations: 1)
         let runningWorkout = CustomWorkout(
             activity: .running,
             location: .indoor,
@@ -259,9 +270,9 @@ struct ContentView: View {
         )
         
         // Jump rope Workout
-        let jumpRopeStep = WorkoutStep(goal: .time(180, .seconds), displayName: "Jump Rope")
+        let jumpRopeStep = WorkoutStep(goal: .time(90, .seconds), displayName: "Jump Rope")
         let jumpRopeInterval = IntervalStep(.work, step: jumpRopeStep)
-        let jumpRopeBlock = IntervalBlock(steps: [jumpRopeInterval, recoveryInterval], iterations: 3)
+        let jumpRopeBlock = IntervalBlock(steps: [jumpRopeInterval, timedRecoveryInterval], iterations: 5)
         let jumpRopeWorkout = CustomWorkout(
             activity: .jumpRope,
             location: .indoor,
@@ -270,7 +281,7 @@ struct ContentView: View {
         )
 
         // Cooldown
-        let cooldownStep = WorkoutStep(goal: .time(300, .seconds), displayName: "Cooldown")
+        let cooldownStep = WorkoutStep(goal: .time(300, .seconds), displayName: "Stretching")
         let cooldownInterval = IntervalStep(.work, step: cooldownStep)
         let cooldownBlock = IntervalBlock(steps: [cooldownInterval], iterations: 1)
         let cooldownWorkout = CustomWorkout(

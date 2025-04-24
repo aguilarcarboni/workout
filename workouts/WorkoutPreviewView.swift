@@ -7,6 +7,7 @@
 
 import SwiftUI
 import WorkoutKit
+import HealthKit
 
 struct WorkoutPreviewView: View {
     let workoutSequence: WorkoutSequence
@@ -70,12 +71,6 @@ struct WorkoutPreviewView: View {
             ForEach(0..<workoutSequence.workouts.count, id: \.self) { index in
                 let workout = workoutSequence.workouts[index]
                 workoutView(for: workout, at: index)
-                
-                if index < workoutSequence.workouts.count - 1 {
-                    Image(systemName: "arrow.down")
-                        .font(.title2)
-                        .foregroundStyle(.secondary)
-                }
             }
         }
     }
@@ -83,7 +78,10 @@ struct WorkoutPreviewView: View {
     private func workoutView(for workout: CustomWorkout, at index: Int) -> some View {
         VStack(spacing: 20) {
             HStack {
-                Text("Workout \(index + 1): \(workout.displayName ?? "Unnamed Workout")")
+                Image(systemName: iconForActivityType(workout.activity))
+                    .font(.title2)
+                    .foregroundStyle(Color("AccentColor"))
+                Text("\(workout.displayName ?? "Unnamed Workout")")
                     .font(.title2)
                     .fontWeight(.bold)
                 Spacer()
@@ -157,26 +155,19 @@ struct WorkoutPreviewView: View {
     private func intervalBlockView(_ block: IntervalBlock, blockIndex: Int) -> some View {
         VStack(spacing: 10) {
             HStack {
-                Image(systemName: "repeat.circle.fill")
-                    .font(.title2)
-                    .foregroundStyle(Color("AccentColor"))
-                Text("Block \(blockIndex + 1) - \(block.iterations)x")
-                    .font(.headline)
+                if block.iterations > 1 {
+                    Image(systemName: "repeat.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(Color("AccentColor"))
+                    Text("\(block.iterations) sets")
+                        .font(.headline)
+                }
                 Spacer()
             }
             
             ForEach(Array(block.steps.enumerated()), id: \.offset) { stepIndex, step in
                 if let intervalStep = step as? IntervalStep {
                     intervalStepView(intervalStep, color: Color("AccentColor"))
-                }
-            }
-            
-            if let duration = totalBlockDuration(block) {
-                HStack {
-                    Spacer()
-                    Text("Total block time: \(timeString(from: duration))")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
                 }
             }
         }
@@ -190,11 +181,7 @@ struct WorkoutPreviewView: View {
         let stepColor = isRest ? Color.yellow : color
         
         return HStack(spacing: 15) {
-            Image(systemName: isRest ? "zzz" : "dumbbell.fill")
-                .font(.title3)
-                .foregroundStyle(stepColor)
-                .frame(width: 30)
-            
+
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text(step.step.displayName ?? (isRest ? "Rest" : "Exercise"))
@@ -241,7 +228,82 @@ struct WorkoutPreviewView: View {
         .background(Color(.secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 15))
     }
+
+    // Alerts
+    private func alertDescription(for alert: any WorkoutAlert) -> some View {
+        HStack {
+            Image(systemName: alertIcon(for: alert))
+                .foregroundStyle(alertColor(for: alert))
+            Text(alertDescription(for: alert))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
     
+    private func alertIcon(for alert: any WorkoutAlert) -> String {
+        switch alert {
+        case is HeartRateRangeAlert, is HeartRateZoneAlert:
+            return "heart.fill"
+        case is PowerRangeAlert, is PowerThresholdAlert, is PowerZoneAlert:
+            return "bolt.fill"
+        case is CadenceRangeAlert, is CadenceThresholdAlert:
+            return "figure.run"
+        case is SpeedRangeAlert, is SpeedThresholdAlert:
+            return "speedometer"
+        default:
+            return "bell.fill"
+        }
+    }
+    
+    private func alertColor(for alert: any WorkoutAlert) -> Color {
+        switch alert {
+        case is HeartRateRangeAlert, is HeartRateZoneAlert:
+            return .red
+        case is PowerRangeAlert, is PowerThresholdAlert, is PowerZoneAlert:
+            return .yellow
+        case is CadenceRangeAlert, is CadenceThresholdAlert:
+            return .green
+        case is SpeedRangeAlert, is SpeedThresholdAlert:
+            return .blue
+        default:
+            return .orange
+        }
+    }
+    
+    private func alertDescription(for alert: any WorkoutAlert) -> String {
+        switch alert {
+        case let heartRateAlert as HeartRateRangeAlert:
+            let lowerBound = heartRateAlert.target.lowerBound.value
+            let upperBound = heartRateAlert.target.upperBound.value
+            return "Heart Rate: \(Int(lowerBound))-\(Int(upperBound)) BPM"
+        case let heartRateAlert as HeartRateZoneAlert:
+            return "Heart Rate Zone: \(heartRateAlert.zone)"
+        case let powerAlert as PowerRangeAlert:
+            let lowerBound = powerAlert.target.lowerBound.value
+            let upperBound = powerAlert.target.upperBound.value
+            return "Power: \(Int(lowerBound))-\(Int(upperBound)) W"
+        case let powerAlert as PowerThresholdAlert:
+            return "Power: \(Int(powerAlert.target.value)) W"
+        case let powerAlert as PowerZoneAlert:
+            return "Power Zone: \(powerAlert.zone)"
+        case let cadenceAlert as CadenceRangeAlert:
+            let lowerBound = cadenceAlert.target.lowerBound.value
+            let upperBound = cadenceAlert.target.upperBound.value
+            return "Cadence: \(Int(lowerBound))-\(Int(upperBound)) RPM"
+        case let cadenceAlert as CadenceThresholdAlert:
+            return "Cadence: \(Int(cadenceAlert.target.value)) RPM"
+        case let speedAlert as SpeedRangeAlert:
+            let lowerBound = speedAlert.target.lowerBound.value
+            let upperBound = speedAlert.target.upperBound.value
+            return "Speed: \(String(format: "%.1f", lowerBound))-\(String(format: "%.1f", upperBound)) \(speedAlert.target.lowerBound.unit.symbol)"
+        case let speedAlert as SpeedThresholdAlert:
+            return "Speed: \(String(format: "%.1f", speedAlert.target.value)) \(speedAlert.target.unit.symbol)"
+        default:
+            return "Target Zone Alert"
+        }
+    }
+
+    // Goals
     private func goalDescription(for goal: WorkoutGoal) -> Text {
         switch goal {
         case .time(let duration, let unit):
@@ -262,32 +324,7 @@ struct WorkoutPreviewView: View {
                 .foregroundStyle(.secondary)
         }
     }
-    
-    private func alertDescription(for alert: any WorkoutAlert) -> some View {
-        HStack {
-            Image(systemName: "heart.fill")
-                .foregroundStyle(.orange)
-            Text("Target Zone Alert")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-    }
-    
-    private func totalBlockDuration(_ block: IntervalBlock) -> TimeInterval? {
-        var totalDuration: TimeInterval = 0
-        var hasTimeGoal = false
-        
-        for step in block.steps {
-            if let intervalStep = step as? IntervalStep,
-               case .time(let duration, _) = intervalStep.step.goal {
-                hasTimeGoal = true
-                totalDuration += duration
-            }
-        }
-        
-        return hasTimeGoal ? (totalDuration * Double(block.iterations)) : nil
-    }
-    
+
     private func timeString(from timeInterval: TimeInterval) -> String {
         let minutes = Int(timeInterval) / 60
         let seconds = Int(timeInterval) % 60
@@ -338,6 +375,93 @@ struct WorkoutPreviewView: View {
         }
         
         showWorkout = true
+    }
+    
+    private func iconForActivityType(_ activityType: HKWorkoutActivityType) -> String {
+        switch activityType {
+        case .archery: return "figure.archery"
+        case .bowling: return "figure.bowling"
+        case .fencing: return "figure.fencing"
+        case .gymnastics: return "figure.gymnastics"
+        case .trackAndField: return "figure.track.and.field"
+        case .americanFootball: return "figure.american.football"
+        case .australianFootball: return "figure.australian.football"
+        case .baseball: return "figure.baseball"
+        case .basketball: return "figure.basketball"
+        case .cricket: return "figure.cricket"
+        case .discSports: return "figure.disc.sports"
+        case .handball: return "figure.handball"
+        case .hockey: return "figure.hockey"
+        case .lacrosse: return "figure.lacrosse"
+        case .rugby: return "figure.rugby"
+        case .soccer: return "figure.outdoor.soccer"
+        case .softball: return "figure.softball"
+        case .volleyball: return "figure.volleyball"
+        case .preparationAndRecovery: return "figure.cooldown"
+        case .flexibility: return "figure.flexibility"
+        case .cooldown: return "figure.cooldown"
+        case .walking: return "figure.walk"
+        case .running: return "figure.run"
+        case .wheelchairWalkPace: return "figure.roll"
+        case .wheelchairRunPace: return "figure.roll.runningpace"
+        case .cycling: return "figure.outdoor.cycle"
+        case .handCycling: return "figure.hand.cycling"
+        case .coreTraining: return "figure.core.training"
+        case .elliptical: return "figure.elliptical"
+        case .functionalStrengthTraining: return "figure.strengthtraining.functional"
+        case .traditionalStrengthTraining: return "figure.strengthtraining.traditional"
+        case .crossTraining: return "figure.cross.training"
+        case .mixedCardio: return "figure.mixed.cardio"
+        case .highIntensityIntervalTraining: return "figure.highintensity.intervaltraining"
+        case .jumpRope: return "figure.jumprope"
+        case .stairClimbing: return "figure.stair.stepper"
+        case .stairs: return "figure.stairs"
+        case .stepTraining: return "figure.step.training"
+        case .fitnessGaming: return "gamecontroller"
+        case .barre: return "figure.barre"
+        case .cardioDance: return "figure.dance"
+        case .socialDance: return "figure.socialdance"
+        case .yoga: return "figure.yoga"
+        case .mindAndBody: return "figure.mind.and.body"
+        case .pilates: return "figure.pilates"
+        case .badminton: return "figure.badminton"
+        case .pickleball: return "figure.pickleball"
+        case .racquetball: return "figure.racquetball"
+        case .squash: return "figure.squash"
+        case .tableTennis: return "figure.table.tennis"
+        case .tennis: return "figure.tennis"
+        case .climbing: return "figure.climbing"
+        case .equestrianSports: return "figure.equestrian.sports"
+        case .fishing: return "figure.fishing"
+        case .golf: return "figure.golf"
+        case .hiking: return "figure.hiking"
+        case .hunting: return "figure.hunting"
+        case .play: return "figure.play"
+        case .crossCountrySkiing: return "figure.skiing.crosscountry"
+        case .curling: return "figure.curling"
+        case .downhillSkiing: return "figure.skiing.downhill"
+        case .snowSports: return "figure.snowboarding"
+        case .snowboarding: return "figure.snowboarding"
+        case .skatingSports: return "figure.ice.skating"
+        case .paddleSports: return "figure.surfing"
+        case .rowing: return "figure.indoor.rowing"
+        case .sailing: return "figure.sailing"
+        case .surfingSports: return "figure.surfing"
+        case .swimming: return "figure.pool.swim"
+        case .waterFitness: return "figure.water.fitness"
+        case .waterPolo: return "figure.waterpolo"
+        case .waterSports: return "figure.water.fitness"
+        case .boxing: return "figure.boxing"
+        case .kickboxing: return "figure.kickboxing"
+        case .martialArts: return "figure.martial.arts"
+        case .taiChi: return "figure.taichi"
+        case .wrestling: return "figure.wrestling"
+        case .swimBikeRun: return "figure.cross.training"
+        case .transition: return "arrow.triangle.2.circlepath"
+        case .underwaterDiving: return "figure.pool.swim"
+        case .other: return "figure.walk"
+        @unknown default: return "figure.walk"
+        }
     }
 }
 
