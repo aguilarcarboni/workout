@@ -24,11 +24,6 @@ struct WorkoutPreviewView: View {
             mainContent
         }
         .padding(.vertical, 20)
-        .fullScreenCover(isPresented: $showWorkout) {
-            if !scheduledWorkoutPlans.isEmpty {
-                WorkoutView(workoutSequence: workoutSequence, scheduledWorkouts: scheduledWorkoutPlans)
-            }
-        }
     }
     
     private var backgroundGradient: some View {
@@ -97,7 +92,7 @@ struct WorkoutPreviewView: View {
             Button(action: {
                 Task {
                     await scheduleWorkoutSequence()
-                    showWorkout = true
+                    dismiss()
                 }
             }) {
                 HStack {
@@ -374,7 +369,7 @@ struct WorkoutPreviewView: View {
             return
         }
         
-        showWorkout = true
+        // showWorkout = true // removed
     }
     
     private func iconForActivityType(_ activityType: HKWorkoutActivityType) -> String {
