@@ -53,10 +53,12 @@ struct WorkoutPreviewView: View {
             Text(workoutSequence.displayName)
                 .font(.system(size: 34, weight: .bold, design: .rounded))
                 .foregroundStyle(.primary)
+                .multilineTextAlignment(.center)
             
-            Text("\(workoutSequence.workouts.count) workouts in sequence")
+            Text("\(workoutSequence.workouts.count) workout\(workoutSequence.workouts.count == 1 ? "" : "s") in sequence")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
         }
         .padding(.top)
     }
@@ -79,7 +81,6 @@ struct WorkoutPreviewView: View {
                 Text("\(workout.displayName ?? "Unnamed Workout")")
                     .font(.title2)
                     .fontWeight(.bold)
-                Spacer()
             }
             
             workoutDetailsView(for: workout)
@@ -96,8 +97,8 @@ struct WorkoutPreviewView: View {
                 }
             }) {
                 HStack {
-                    Image(systemName: "play.fill")
-                    Text("Start Workout")
+                    Image(systemName: "applewatch")
+                    Text("Send to Watch")
                         .fontWeight(.semibold)
                 }
                 .frame(maxWidth: .infinity)
@@ -150,13 +151,11 @@ struct WorkoutPreviewView: View {
     private func intervalBlockView(_ block: IntervalBlock, blockIndex: Int) -> some View {
         VStack(spacing: 10) {
             HStack {
-                if block.iterations > 1 {
-                    Image(systemName: "repeat.circle.fill")
-                        .font(.title2)
-                        .foregroundStyle(Color("AccentColor"))
-                    Text("\(block.iterations) sets")
-                        .font(.headline)
-                }
+                Image(systemName: "repeat.circle.fill")
+                    .font(.title2)
+                    .foregroundStyle(Color("AccentColor"))
+                Text("\(block.iterations) set\(block.iterations > 1 ? "s" : "")")
+                    .font(.headline)
                 Spacer()
             }
             
@@ -182,7 +181,7 @@ struct WorkoutPreviewView: View {
                     Text(step.step.displayName ?? (isRest ? "Rest" : "Exercise"))
                         .font(.headline)
                 }
-                
+            
                 goalDescription(for: step.step.goal)
                 
                 if let alert = step.step.alert {
@@ -310,7 +309,7 @@ struct WorkoutPreviewView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         case .open:
-            return Text("Until manually advanced")
+            return Text("No goal")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         @unknown default:

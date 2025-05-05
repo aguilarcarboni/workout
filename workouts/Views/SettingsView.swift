@@ -10,14 +10,15 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 20) {
 
                 List {
-
-                    Button(authorizationState == .authorized ? "Authorized" : "Authorize Sync") {
-                        Task {
-                            authorizationState = await WorkoutScheduler.shared.requestAuthorization()
+                    Section("Authorization") {
+                        Button(authorizationState == .authorized ? "Authorized" : "Authorize Sync") {
+                            Task {
+                                authorizationState = await WorkoutScheduler.shared.requestAuthorization()
+                            }
                         }
+                        .buttonStyle(.plain)
+                        .foregroundColor(authorizationState == .authorized ? Color("AccentColor") : .primary)
                     }
-                    .buttonStyle(.plain)
-                    .foregroundColor(authorizationState == .authorized ? Color("AccentColor") : .primary)
                 }
             }
             .navigationTitle("Settings")

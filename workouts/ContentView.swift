@@ -25,7 +25,7 @@ struct ContentView: View {
                 .sheet(item: $selectedWorkoutSequence) { sequence in
                     WorkoutPreviewView(workoutSequence: sequence)
                 }
-                .navigationTitle("Workouts")
+                .navigationTitle("Workout")
             }
             .tabItem {
                 Label("Workout", systemImage: "figure.strengthtraining.traditional")
@@ -65,13 +65,69 @@ struct ContentView: View {
     private func createWorkouts() async {
         // Create individual workout sequences
         let upperBodySequence = await createUpperBodyStrengthWorkoutSequence()
+        let complementaryUpperBodySequence = await createComplementaryUpperBodyStrengthWorkoutSequence()
         let lowerBodySequence = await createLowerBodyStrengthWorkoutSequence()
         let cardioSequence = await createCardioWorkoutSequence()
         
         // Add sequences to the array
         workoutSequences.append(upperBodySequence)
+        workoutSequences.append(complementaryUpperBodySequence)
         workoutSequences.append(lowerBodySequence)
         workoutSequences.append(cardioSequence)
+    }
+
+    private func createComplementaryUpperBodyStrengthWorkoutSequence() async -> WorkoutSequence {
+        
+        // Initialize Recovery Step
+        // Used to let the user go to the machine and/or rest
+        let recoveryStep = WorkoutStep(goal: .open, displayName: "Rest")
+        let recoveryInterval = IntervalStep(.recovery, step: recoveryStep)
+
+        // Complementary Upper Body Calisthenics Warmup
+        let chinUpsStep = WorkoutStep(goal: .open, displayName: "Chin Ups")
+        let chinUpsInterval = IntervalStep(.work, step: chinUpsStep)
+        let dipsStep = WorkoutStep(goal: .open, displayName: "Dips")
+        let dipsInterval = IntervalStep(.work, step: dipsStep)
+        let calisthenicsBlock = IntervalBlock(steps: [chinUpsInterval, recoveryInterval, dipsInterval, recoveryInterval], iterations: 2)
+
+        // Complementary Upper Body Strength
+        let bicepCurlsStep = WorkoutStep(goal: .open, displayName: "Bicep Curls")
+        let bicepCurlsInterval = IntervalStep(.work, step: bicepCurlsStep)
+        let bicepCurlsBlock = IntervalBlock(steps: [bicepCurlsInterval, recoveryInterval], iterations: 2)
+
+        let tricepsExtensionStep = WorkoutStep(goal: .open, displayName: "Triceps Extension") 
+        let tricepsExtensionInterval = IntervalStep(.work, step: tricepsExtensionStep)
+        let tricepsExtensionBlock = IntervalBlock(steps: [tricepsExtensionInterval, recoveryInterval], iterations: 2)
+
+        let lateralRaisesStep = WorkoutStep(goal: .open, displayName: "Lateral Raises") 
+        let lateralRaisesInterval = IntervalStep(.work, step: lateralRaisesStep)
+        let lateralRaisesBlock = IntervalBlock(steps: [lateralRaisesInterval, recoveryInterval], iterations: 2)
+
+        // Upper Body Muscular Endurance
+        let preacherCurlStep = WorkoutStep(goal: .open, displayName: "Preacher Curl")
+        let preacherCurlInterval = IntervalStep(.work, step: preacherCurlStep)
+        let preacherCurlBlock = IntervalBlock(steps: [preacherCurlInterval, recoveryInterval], iterations: 2)
+
+        let singleArmTricepsExtensionStep = WorkoutStep(goal: .open, displayName: "Single-Arm Triceps Extension")
+        let singleArmTricepsExtensionInterval = IntervalStep(.work, step: singleArmTricepsExtensionStep)
+        let singleArmTricepsExtensionBlock = IntervalBlock(steps: [singleArmTricepsExtensionInterval, recoveryInterval], iterations: 2)
+
+        let tricepsPushdownStep = WorkoutStep(goal: .open, displayName: "Triceps Pushdown")
+        let tricepsPushdownInterval = IntervalStep(.work, step: tricepsPushdownStep)
+        let tricepsPushdownBlock = IntervalBlock(steps: [tricepsPushdownInterval, recoveryInterval], iterations: 2)
+        
+        // Create Custom Workout
+        let upperBodyStrengthWorkout = CustomWorkout(
+            activity: .traditionalStrengthTraining,
+            location: .indoor,
+            displayName: "Complementary Strength",
+            blocks: [calisthenicsBlock, bicepCurlsBlock, tricepsExtensionBlock, lateralRaisesBlock, preacherCurlBlock, singleArmTricepsExtensionBlock, tricepsPushdownBlock],
+        )
+        
+        return WorkoutSequence(
+            workouts: [upperBodyStrengthWorkout],
+            displayName: "Complementary Upper Body"
+        )
     }
 
     private func createUpperBodyStrengthWorkoutSequence() async -> WorkoutSequence {
