@@ -68,12 +68,14 @@ struct ContentView: View {
         let complementaryUpperBodySequence = await createComplementaryUpperBodyStrengthWorkoutSequence()
         let lowerBodySequence = await createLowerBodyStrengthWorkoutSequence()
         let cardioSequence = await createCardioWorkoutSequence()
+        let cardioAndWeightsSequence = await createCardioAndWeightsWorkoutSequence()
         
         // Add sequences to the array
         workoutSequences.append(upperBodySequence)
         workoutSequences.append(complementaryUpperBodySequence)
         workoutSequences.append(lowerBodySequence)
         workoutSequences.append(cardioSequence)
+        workoutSequences.append(cardioAndWeightsSequence)
     }
 
     private func createComplementaryUpperBodyStrengthWorkoutSequence() async -> WorkoutSequence {
@@ -266,11 +268,11 @@ struct ContentView: View {
         let runningInterval = IntervalStep(.work, step: runningStep)
         let runningBlock = IntervalBlock(steps: [runningInterval], iterations: 1)
         
-        // Lower Body Functional Agility
-        let jumpRopeStep = WorkoutStep(goal: .time(90, .seconds), displayName: "Work")
+        // Lower Body Plyometrics
+        let jumpRopeStep = WorkoutStep(goal: .time(90, .seconds), alert: .heartRate(zone: 4), displayName: "Jump Rope")
         let jumpRopeInterval = IntervalStep(.work, step: jumpRopeStep)
-        let jumpRopeBlock = IntervalBlock(steps: [jumpRopeInterval, timedRecoveryInterval], iterations: 5)
-        
+        let jumpRopeBlock = IntervalBlock(steps: [jumpRopeInterval, timedRecoveryInterval], iterations: 3)
+
         // Create Custom Workouts
         let cyclingWorkout = CustomWorkout(
             activity: .cycling,
@@ -297,6 +299,84 @@ struct ContentView: View {
             workouts: [cyclingWorkout, runningWorkout, jumpRopeWorkout],
             displayName: "Cardio"
         )
+    }
+
+        private func createCardioAndWeightsWorkoutSequence() async -> WorkoutSequence {
+        
+        // Initialize Recovery Step
+        // Used to let the user go to the machine and/or rest
+        let recoveryStep = WorkoutStep(goal: .open, displayName: "Rest")
+        let recoveryInterval = IntervalStep(.recovery, step: recoveryStep)
+
+        let timedRecoveryStep = WorkoutStep(goal: .time(30, .seconds), displayName: "Rest")
+        let timedRecoveryInterval = IntervalStep(.recovery, step: timedRecoveryStep)
+
+        let sprintsRecoveryStep = WorkoutStep(goal: .time(30, .seconds), displayName: "Rest")
+        let sprintsRecoveryInterval = IntervalStep(.recovery, step: sprintsRecoveryStep)
+
+        // Upper Body Calisthenics Warmup
+        let pullUpsStep = WorkoutStep(goal: .open, displayName: "Pull Ups")
+        let pullUpsInterval = IntervalStep(.work, step: pullUpsStep)
+        let dipsStep = WorkoutStep(goal: .open, displayName: "Dips")
+        let dipsInterval = IntervalStep(.work, step: dipsStep)
+        let calisthenicsBlock = IntervalBlock(steps: [pullUpsInterval, recoveryInterval, dipsInterval, recoveryInterval], iterations: 2)
+
+        // Lower Body Calisthenics Warmup
+
+        // Upper Body Functional Strength
+        let latPulldownStep = WorkoutStep(goal: .open, displayName: "Lat Pulldown")
+        let latPullDownInterval = IntervalStep(.work, step: latPulldownStep)
+        let latPulldownBlock = IntervalBlock(steps: [latPullDownInterval, recoveryInterval], iterations: 3)
+
+        let benchPressStep = WorkoutStep(goal: .open, displayName: "Bench Press") 
+        let benchPressInterval = IntervalStep(.work, step: benchPressStep)
+        let benchPressBlock = IntervalBlock(steps: [benchPressInterval, recoveryInterval], iterations: 3)
+
+        // Lower Body Functional Strength
+        let squatsStep = WorkoutStep(goal: .open, displayName: "Barbell Back Squats")
+        let squatsInterval = IntervalStep(.work, step: squatsStep)
+        let squatsBlock = IntervalBlock(steps: [squatsInterval, recoveryInterval], iterations: 3)
+
+        let deadliftsStep = WorkoutStep(goal: .open, displayName: "Barbell Deadlifts")
+        let deadliftsInterval = IntervalStep(.work, step: deadliftsStep)
+        let deadliftsBlock = IntervalBlock(steps: [deadliftsInterval, recoveryInterval], iterations: 3)
+
+        // Lower Body Plyometrics
+        let jumpRopeStep = WorkoutStep(goal: .time(90, .seconds), alert: .heartRate(zone: 4), displayName: "Jump Rope")
+        let jumpRopeInterval = IntervalStep(.work, step: jumpRopeStep)
+        let jumpRopeBlock = IntervalBlock(steps: [jumpRopeInterval, timedRecoveryInterval], iterations: 3)
+
+        // Sprints
+        let sprintStep = WorkoutStep(goal: .distance(400, .meters), alert: .heartRate(zone: 5), displayName: "Sprints")
+        let sprintInterval = IntervalStep(.work, step: sprintStep)
+        let sprintBlock = IntervalBlock(steps: [sprintInterval, sprintsRecoveryInterval], iterations: 3)
+
+        // Create Custom Workout
+        let strengthWorkout = CustomWorkout(
+            activity: .traditionalStrengthTraining,
+            location: .indoor,
+            displayName: "Functional Strength",
+            blocks: [calisthenicsBlock, latPulldownBlock, benchPressBlock, squatsBlock, deadliftsBlock],
+        )
+
+        let plyometricsWorkout = CustomWorkout(
+            activity: .highIntensityIntervalTraining,
+            location: .indoor,
+            displayName: "Plyometrics",
+            blocks: [jumpRopeBlock],
+        )
+
+        let sprintsWorkout = CustomWorkout(
+            activity: .running,
+            location: .indoor,
+            displayName: "Sprints",
+            blocks: [sprintBlock],
+        )
+        
+        return WorkoutSequence(
+            workouts: [strengthWorkout, plyometricsWorkout, sprintsWorkout],
+            displayName: "Cardio and Weights"
+        )   
     }
 
 
