@@ -3,7 +3,8 @@ import HealthKit
 import WorkoutKit
 
 struct SettingsView: View {
-    @State private var authorizationState: WorkoutScheduler.AuthorizationState = .notDetermined
+
+    @StateObject private var authManager = AuthorizationManager.shared
     
     var body: some View {
         NavigationView {
@@ -11,25 +12,26 @@ struct SettingsView: View {
 
                 List {
                     Section("Authorization") {
-                        Button(authorizationState == .authorized ? "Authorized" : "Authorize Sync") {
+                        Button(authManager.workoutAuthorizationState == .authorized ? "Watch Sync Authorized" : "Authorize Watch Sync") {
                             Task {
-                                authorizationState = await WorkoutScheduler.shared.requestAuthorization()
+                                await authManager.requestWorkoutAuthorization()
                             }
                         }
                         .buttonStyle(.plain)
-                        .foregroundColor(authorizationState == .authorized ? Color("AccentColor") : .primary)
+                        .foregroundColor(authManager.workoutAuthorizationState == .authorized ? Color("AccentColor") : .primary)
+
+                        Button(authManager.healthAuthorizationState == .authorized ? "Health Data Authorized" : "Authorize Health Data") {
+                            Task {
+                                await authManager.requestHealthAuthorization()
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundColor(authManager.healthAuthorizationState == .authorized ? Color("AccentColor") : .primary)
                     }
                 }
             }
             .navigationTitle("Settings")
-            .task {
-                await updateAuthorizationState()
-            }
         }
-    }
-    
-    private func updateAuthorizationState() async {
-        authorizationState = await WorkoutScheduler.shared.requestAuthorization()
     }
 } 
 

@@ -2,6 +2,7 @@ import SwiftUI
 import WorkoutKit
 
 struct WorkoutView: View {
+    
     let workoutSequence: WorkoutSequence
     let scheduledWorkouts: [ScheduledWorkoutPlan]
     @State private var currentWorkoutIndex: Int = 0

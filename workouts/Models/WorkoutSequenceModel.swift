@@ -10,4 +10,4 @@ struct WorkoutSequence: Identifiable {
         self.workouts = workouts
         self.displayName = displayName
     }
-} 
+}
