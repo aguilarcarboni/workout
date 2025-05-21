@@ -3,7 +3,8 @@ import WorkoutKit
 import HealthKit
 
 struct WorkoutsView: View {
-    @StateObject private var authManager = AuthorizationManager.shared
+
+    @StateObject private var healthManager: HealthManager = .shared
     @State private var selectedWorkoutSequence: WorkoutSequence?
     @State private var workoutSequences: [WorkoutSequence] = []
     
@@ -27,9 +28,10 @@ struct WorkoutsView: View {
             .navigationTitle("Workout")
         }
         .task {
-            await authManager.requestWorkoutAuthorization()
-            await authManager.requestHealthAuthorization()
-            if authManager.workoutAuthorizationState == .authorized && authManager.healthAuthorizationState == .authorized && workoutSequences.isEmpty {
+            let workoutAuthorization = await WorkoutScheduler.shared.requestAuthorization()
+            await HealthManager.shared.requestAuthorization()
+
+            if workoutAuthorization == .authorized && workoutSequences.isEmpty {
                 await createWorkouts()
             }
         }
