@@ -1,4 +1,5 @@
 import SwiftUI
+import WorkoutKit
 import EventKit
 
 struct SummaryView: View {

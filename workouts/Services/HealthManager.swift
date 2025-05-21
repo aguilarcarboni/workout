@@ -1,5 +1,6 @@
 import Foundation
 import HealthKit
+import WorkoutKit
 
 class HealthManager: ObservableObject {
     

@@ -7,6 +7,7 @@
 
 import SwiftUI
 import HealthKit
+import WorkoutKit
 
 @main
 struct workoutsApp: App {

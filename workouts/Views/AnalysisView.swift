@@ -1,5 +1,6 @@
 import SwiftUI
 import HealthKit
+import WorkoutKit
 
 struct AnalysisView: View {
     
@@ -104,4 +105,8 @@ extension HKWorkout: Identifiable {
     public var id: UUID {
         uuid
     }
+}
+
+#Preview {
+    AnalysisView()
 }
