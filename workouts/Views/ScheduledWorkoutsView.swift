@@ -23,12 +23,10 @@ struct ScheduledWorkoutsView: View {
                                 scheduledWorkout: scheduledWorkout,
                                 onMarkComplete: { 
                                     markComplete(scheduledWorkout)
-                                },
-                                onRemove: {
-                                    removeWorkout(scheduledWorkout)
                                 }
                             )
                         }
+                        .onDelete(perform: removeWorkout)
                     }
                 }
             }
@@ -58,12 +56,15 @@ struct ScheduledWorkoutsView: View {
         }
     }
     
-    private func removeWorkout(_ scheduledWorkout: ScheduledWorkoutPlan) {
+    private func removeWorkout(at offsets: IndexSet) {
+        let workoutsToRemove = offsets.map { scheduledWorkouts[$0] }
         Task {
-            await WorkoutScheduler.shared.remove(
-                scheduledWorkout.plan,
-                at: scheduledWorkout.date
-            )
+            for workout in workoutsToRemove {
+                await WorkoutScheduler.shared.remove(
+                    workout.plan,
+                    at: workout.date
+                )
+            }
             await loadScheduledWorkouts()
         }
     }
@@ -72,31 +73,18 @@ struct ScheduledWorkoutsView: View {
 struct ScheduledWorkoutRow: View {
     let scheduledWorkout: ScheduledWorkoutPlan
     let onMarkComplete: () -> Void
-    let onRemove: () -> Void
     
     var body: some View {
         VStack(alignment: .leading) {
             Text("Workout")
                 .font(.headline)
-            
             if let date = Calendar.current.date(from: scheduledWorkout.date) {
                 Text(date, style: .date)
                     .font(.subheadline)
                 Text(date, style: .time)
                     .font(.subheadline)
             }
-            
-            HStack {
-                
-                Button("Remove", role: .destructive) {
-                    onRemove()
-                }
-                .buttonStyle(.plain)
-                .padding(15)
-                .background(Color.red)
-                .cornerRadius(10)
-            }
-            .padding(.top, 4)
+            // You can add more details or actions here, but no explicit Remove button is needed.
         }
         .padding(.vertical, 8)
     }

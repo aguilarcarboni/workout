@@ -26,6 +26,7 @@ extension HKWorkoutActivityType {
             return "Yoga"
         case .traditionalStrengthTraining:
             return "Traditional Strength Training"
+            
         default:
             return "Workout"
         }

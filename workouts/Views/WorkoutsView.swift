@@ -1,10 +1,10 @@
 import SwiftUI
 import WorkoutKit
-import HealthKit
+
+// TODO: Rename workout sequences to sessions
 
 struct WorkoutsView: View {
 
-    @StateObject private var healthManager: HealthManager = .shared
     @State private var selectedWorkoutSequence: WorkoutSequence?
     @State private var workoutSequences: [WorkoutSequence] = []
     
@@ -25,14 +25,19 @@ struct WorkoutsView: View {
             .sheet(item: $selectedWorkoutSequence) { sequence in
                 WorkoutPreviewView(workoutSequence: sequence)
             }
-            .navigationTitle("Workout")
+            .navigationTitle("Workout Sequences")
         }
         .task {
             let workoutAuthorization = await WorkoutScheduler.shared.requestAuthorization()
-            await HealthManager.shared.requestAuthorization()
-
             if workoutAuthorization == .authorized && workoutSequences.isEmpty {
                 await createWorkouts()
+            }
+        }
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("Add Workout") {
+                    // TODO: Add workout
+                }
             }
         }
     }
@@ -103,7 +108,7 @@ struct WorkoutsView: View {
         
         return WorkoutSequence(
             workouts: [upperBodyStrengthWorkout],
-            displayName: "Complementary Upper Body"
+            displayName: "Complementary Upper Body Strength"
         )
     }
 
@@ -149,7 +154,7 @@ struct WorkoutsView: View {
         
         return WorkoutSequence(
             workouts: [upperBodyStrengthWorkout],
-            displayName: "Upper Body"
+            displayName: "Upper Body Strength"
         )
     }
 
@@ -223,7 +228,7 @@ struct WorkoutsView: View {
         
         return WorkoutSequence(
             workouts: [cyclingWorkout, lowerBodyStrengthWorkout, coreWorkout],
-            displayName: "Lower Body"
+            displayName: "Lower Body Strength"
         )
     }
 
