@@ -35,6 +35,15 @@ struct WorkoutsView: View {
             }
             .padding(.vertical, 16)
             .navigationTitle("Workout Sequences")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: {
+                        print("Creating new workout sequence...")
+                    }) {
+                        Image(systemName: "plus")
+                    }
+                }
+            }
         }
     }
 }

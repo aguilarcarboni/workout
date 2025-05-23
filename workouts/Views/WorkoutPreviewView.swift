@@ -137,14 +137,6 @@ struct WorkoutPreviewView: View {
                 .foregroundColor(Color.black)
                 .clipShape(RoundedRectangle(cornerRadius: 20))
             }
-            
-            Button(action: {
-                dismiss()
-            }) {
-                Text("Cancel")
-                    .fontWeight(.medium)
-                    .foregroundStyle(.red)
-            }
         }
         .padding(.horizontal)
         .padding(.bottom, 30)
