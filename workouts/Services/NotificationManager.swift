@@ -6,15 +6,38 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
     
     static let shared = NotificationManager()
     private let notificationCenter = UNUserNotificationCenter.current()
-    @Published var isAuthorized = false
+    @Published var authorizationState: UNAuthorizationStatus = .notDetermined
+
+    override init() {
+        super.init()
+        notificationCenter.delegate = self
+        // Check current authorization state on init
+        Task {
+            await checkCurrentAuthorizationStatus()
+        }
+    }
     
-    func requestAuthorization() async {
+    private func checkCurrentAuthorizationStatus() async {
+        let settings = await notificationCenter.notificationSettings()
+        DispatchQueue.main.async {
+            self.authorizationState = settings.authorizationStatus
+        }
+    }
+    
+    func requestAuthorization() async -> UNAuthorizationStatus {
         do {
             let granted = try await notificationCenter.requestAuthorization(options: [.alert, .sound, .badge])
+            // Update the state on the main thread as it's a @Published property
             DispatchQueue.main.async {
-                self.isAuthorized = granted
+                self.authorizationState = granted ? .authorized : .denied
             }
+            return granted ? .authorized : .denied
         } catch {
+            // Update the state on the main thread
+            DispatchQueue.main.async {
+                self.authorizationState = .denied // Or handle as appropriate
+            }
+            return .denied // Or handle as appropriate
         }
     }
 
@@ -26,7 +49,7 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
             content.body = "It's time to do your \(scheduledWorkoutPlan.plan.workout.activity.name) workout!"
             content.sound = .default
             
-            // Schedule the notification for 30 seconds in the future
+            // Schedule the notification for 5 seconds in the future
             let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 5, repeats: false)
             
             let request = UNNotificationRequest(
@@ -37,6 +60,7 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
             
             do {
                 try await notificationCenter.add(request)
+                print("Workout notification scheduled successfully")
             } catch {
                 print("Failed to send workout notification: \(error.localizedDescription)")
             }
@@ -60,4 +84,4 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
         completionHandler()
     }
-}
+} 

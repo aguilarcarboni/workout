@@ -36,7 +36,7 @@ struct ContentView: View {
             
             // Authenticate Relevant Services
             _ = await workoutScheduler.requestAuthorization()
-            await notificationManager.requestAuthorization()
+            _ = await notificationManager.requestAuthorization()
             
             // Prepare Workouts
             await removeAllScheduledWorkoutsScheduledBeforeToday()
@@ -48,10 +48,10 @@ struct ContentView: View {
 
     private func removeAllScheduledWorkoutsScheduledBeforeToday() async {
         let scheduledWorkouts = await workoutScheduler.scheduledWorkouts
-        let today = Date()
+        let yesterday: Date = Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date()
         let calendar = Calendar.current
         for scheduledWorkout in scheduledWorkouts {
-            if let scheduledDate = calendar.date(from: scheduledWorkout.date), scheduledDate < today {
+            if let scheduledDate = calendar.date(from: scheduledWorkout.date), scheduledDate < yesterday {
                 await workoutScheduler.remove(scheduledWorkout.plan, at: scheduledWorkout.date)
             }
         }
