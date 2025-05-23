@@ -19,12 +19,7 @@ struct ContentView: View {
                         Label("Workout", systemImage: "figure.strengthtraining.traditional")
                     }
 
-                    NavigationView {
-                        VStack {
-                            Image(systemName: "figure.mind.and.body")
-                            Text("Coming soon...")
-                        }
-                    }
+                    RecoveryView()
                     .tabItem {
                         Label("Recovery", systemImage: "figure.mind.and.body")
                     }
@@ -40,13 +35,7 @@ struct ContentView: View {
                     }
                 }
             } else {
-                VStack(spacing: 20) {
-                    Text("Permissions Required")
-                        .font(.title)
-                    Text("This app requires permissions for workouts and notifications to function correctly. Please grant these permissions in the Settings app.")
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                }
+                ProgressView()
             }
         }
         .task {

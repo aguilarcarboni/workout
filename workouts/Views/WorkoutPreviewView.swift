@@ -334,7 +334,7 @@ struct WorkoutPreviewView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         case .distance(let distance, let unit):
-            return Text(String(format: "%.1f %@", distance, unit.description))
+            return Text(String(format: "%.1f %@", distance, unit.symbol))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         case .open:

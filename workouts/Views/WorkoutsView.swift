@@ -8,21 +8,32 @@ struct WorkoutsView: View {
     
     var body: some View {
         NavigationView {
-            VStack {
-                List {
-                    ForEach(workoutManager.workoutSequences) { sequence in
-                        Button(action: {
-                            selectedWorkoutSequence = sequence
-                        }) {
-                            Text(sequence.displayName)
+            Group {
+                if workoutManager.workoutSequences.isEmpty {
+                    ContentUnavailableView(
+                        "No Workout Sequences",
+                        systemImage: "figure.run",
+                        description: Text("Create a workout sequence to see it here")
+                    )
+                } else {
+                    VStack {
+                        List {
+                            ForEach(workoutManager.workoutSequences) { sequence in
+                                Button(action: {
+                                    selectedWorkoutSequence = sequence
+                                }) {
+                                    Text(sequence.displayName)
+                                }
+                                .buttonStyle(.plain)
+                            }
                         }
-                        .buttonStyle(.plain)
+                    }
+                    .sheet(item: $selectedWorkoutSequence) { sequence in
+                        WorkoutPreviewView(workoutSequence: sequence)
                     }
                 }
             }
-            .sheet(item: $selectedWorkoutSequence) { sequence in
-                WorkoutPreviewView(workoutSequence: sequence)
-            }
+            .padding(.vertical, 16)
             .navigationTitle("Workout Sequences")
         }
     }
