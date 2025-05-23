@@ -26,23 +26,17 @@ struct WorkoutPreviewView: View {
         }
         
         for workout in workoutSequence.workouts {
-            do {
+            let workoutPlanWorkout = WorkoutPlan.Workout.custom(workout)
+            let plan = WorkoutPlan(workoutPlanWorkout, id: UUID())
 
-                let workoutPlanWorkout = WorkoutPlan.Workout.custom(workout)
-                let plan = WorkoutPlan(workoutPlanWorkout, id: UUID())
+            let dateComponents = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: currentDate)
+            
+            await WorkoutScheduler.shared.schedule(plan, at: dateComponents)
+            currentDate = Calendar.current.date(byAdding: .minute, value: 5, to: currentDate) ?? currentDate
 
-                let dateComponents = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: currentDate)
-                
-                await WorkoutScheduler.shared.schedule(plan, at: dateComponents)
-                currentDate = Calendar.current.date(byAdding: .minute, value: 5, to: currentDate) ?? currentDate
-
-                // Send notification for the workout
-                let scheduledWorkout = ScheduledWorkoutPlan(plan, date: dateComponents)
-                notificationManager.sendWorkoutNotification(scheduledWorkoutPlan: scheduledWorkout)
-                
-            } catch {
-                fatalError("Failed to schedule workout: \(error)")
-            }
+            // Send notification for the workout
+            let scheduledWorkout = ScheduledWorkoutPlan(plan, date: dateComponents)
+            notificationManager.sendWorkoutNotification(scheduledWorkoutPlan: scheduledWorkout)
         }
 
     }

@@ -6,38 +6,15 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
     
     static let shared = NotificationManager()
     private let notificationCenter = UNUserNotificationCenter.current()
-    @Published var authorizationState: UNAuthorizationStatus = .notDetermined
-
-    override init() {
-        super.init()
-        notificationCenter.delegate = self
-        // Check current authorization state on init
-        Task {
-            await checkCurrentAuthorizationStatus()
-        }
-    }
+    @Published var isAuthorized = false
     
-    private func checkCurrentAuthorizationStatus() async {
-        let settings = await notificationCenter.notificationSettings()
-        DispatchQueue.main.async {
-            self.authorizationState = settings.authorizationStatus
-        }
-    }
-    
-    func requestAuthorization() async -> UNAuthorizationStatus {
+    func requestAuthorization() async {
         do {
             let granted = try await notificationCenter.requestAuthorization(options: [.alert, .sound, .badge])
-            // Update the state on the main thread as it's a @Published property
             DispatchQueue.main.async {
-                self.authorizationState = granted ? .authorized : .denied
+                self.isAuthorized = granted
             }
-            return granted ? .authorized : .denied
         } catch {
-            // Update the state on the main thread
-            DispatchQueue.main.async {
-                self.authorizationState = .denied // Or handle as appropriate
-            }
-            return .denied // Or handle as appropriate
         }
     }
 
@@ -83,4 +60,4 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
         completionHandler()
     }
-} 
+}

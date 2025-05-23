@@ -8,12 +8,12 @@ class WorkoutManager: ObservableObject {
 
     func createWorkouts() async {
         // Create individual workout sequences
-        let upperBodySequence = await createUpperBodyStrengthWorkoutSequence()
-        let complementaryUpperBodySequence = await createComplementaryUpperBodyStrengthWorkoutSequence()
-        let lowerBodySequence = await createLowerBodyStrengthWorkoutSequence()
-        let lowerBodyEnduranceSequence = await createLowerBodyEnduranceWorkoutSequence()
-        let fullBodyEnduranceSequence = await createFullBodyEnduranceWorkoutSequence()
-        let fullBodyStrengthSequence = await createFullBodyStrengthWorkoutSequence()
+        let upperBodySequence = createUpperBodyStrengthWorkoutSequence()
+        let complementaryUpperBodySequence = createComplementaryUpperBodyStrengthWorkoutSequence()
+        let lowerBodySequence = createLowerBodyStrengthWorkoutSequence()
+        let lowerBodyEnduranceSequence = createLowerBodyEnduranceWorkoutSequence()
+        let fullBodyEnduranceSequence = createFullBodyEnduranceWorkoutSequence()
+        let fullBodyStrengthSequence = createFullBodyStrengthWorkoutSequence()
         
         // Add sequences to the array
         workoutSequences.append(upperBodySequence)
@@ -25,7 +25,7 @@ class WorkoutManager: ObservableObject {
         
     }
 
-    private func createComplementaryUpperBodyStrengthWorkoutSequence() async -> WorkoutSequence {
+    private func createComplementaryUpperBodyStrengthWorkoutSequence() -> WorkoutSequence {
         
         // Initialize Recovery Step
         // Used to let the user go to the machine and/or rest
@@ -79,7 +79,7 @@ class WorkoutManager: ObservableObject {
         )
     }
 
-    private func createUpperBodyStrengthWorkoutSequence() async -> WorkoutSequence {
+    private func createUpperBodyStrengthWorkoutSequence() -> WorkoutSequence {
         
         // Initialize Recovery Step
         // Used to let the user go to the machine and/or rest
@@ -125,7 +125,7 @@ class WorkoutManager: ObservableObject {
         )
     }
 
-    private func createLowerBodyStrengthWorkoutSequence() async -> WorkoutSequence {
+    private func createLowerBodyStrengthWorkoutSequence() -> WorkoutSequence {
         
         // Initialize Recovery Steps
         let recoveryStep = WorkoutStep(goal: .open, displayName: "Rest")
@@ -199,7 +199,7 @@ class WorkoutManager: ObservableObject {
         )
     }
 
-    private func createLowerBodyEnduranceWorkoutSequence() async -> WorkoutSequence {
+    private func createLowerBodyEnduranceWorkoutSequence() -> WorkoutSequence {
         
         // Initialize Recovery Step
         let timedRecoveryStep = WorkoutStep(goal: .time(30, .seconds), displayName: "Rest")
@@ -248,13 +248,10 @@ class WorkoutManager: ObservableObject {
         )
     }
 
-    private func createFullBodyEnduranceWorkoutSequence() async -> WorkoutSequence {
+    private func createFullBodyEnduranceWorkoutSequence() -> WorkoutSequence {
         
         // Initialize Recovery Step
         // Used to let the user go to the machine and/or rest
-        let recoveryStep = WorkoutStep(goal: .open, displayName: "Rest")
-        let recoveryInterval = IntervalStep(.recovery, step: recoveryStep)
-
         let timedRecoveryStep = WorkoutStep(goal: .time(30, .seconds), displayName: "Rest")
         let timedRecoveryInterval = IntervalStep(.recovery, step: timedRecoveryStep)
         
@@ -304,7 +301,7 @@ class WorkoutManager: ObservableObject {
         )
     }
 
-    private func createFullBodyStrengthWorkoutSequence() async -> WorkoutSequence {
+    private func createFullBodyStrengthWorkoutSequence() -> WorkoutSequence {
 
         // Initialize Recovery Step
         // Used to let the user go to the machine and/or rest

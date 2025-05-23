@@ -4,15 +4,13 @@ import WorkoutKit
 struct ContentView: View {
     
     @State private var workoutManager: WorkoutManager = .shared
-    @State private var workoutScheduler: WorkoutScheduler = .shared
     @State private var notificationManager: NotificationManager = .shared
-
-    @State private var workoutAuthStatus: WorkoutScheduler.AuthorizationState = .notDetermined
-    @State private var notificationAuthStatus: UNAuthorizationStatus = .notDetermined
+    @State private var workoutScheduler: WorkoutScheduler = .shared
+    @State private var isLoading: Bool = true
 
     var body: some View {
         Group {
-            if workoutAuthStatus == .authorized && notificationAuthStatus == .authorized {
+            if !isLoading {
                 TabView {
                     WorkoutsView()
                     .tabItem {
@@ -29,20 +27,22 @@ struct ContentView: View {
                         Label("Scheduled", systemImage: "clock")
                     }
                     
-                    SettingsView()
-                    .tabItem {
-                        Label("Settings", systemImage: "gear")
-                    }
                 }
             } else {
                 ProgressView()
             }
         }
         .task {
-            workoutAuthStatus = await workoutScheduler.requestAuthorization()
-            notificationAuthStatus = await notificationManager.requestAuthorization()
-            await workoutManager.createWorkouts()
+            
+            // Authenticate Relevant Services
+            _ = await workoutScheduler.requestAuthorization()
+            await notificationManager.requestAuthorization()
+            
+            // Prepare Workouts
             await removeAllScheduledWorkoutsScheduledBeforeToday()
+            await workoutManager.createWorkouts()
+            self.isLoading = false
+            
         }
     }
 
