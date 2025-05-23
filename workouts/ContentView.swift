@@ -47,7 +47,7 @@ struct ContentView: View {
     }
 
     private func removeAllScheduledWorkoutsScheduledBeforeToday() async {
-        let scheduledWorkouts = workoutScheduler.scheduledWorkouts
+        let scheduledWorkouts = await workoutScheduler.scheduledWorkouts
         let today = Date()
         let calendar = Calendar.current
         for scheduledWorkout in scheduledWorkouts {

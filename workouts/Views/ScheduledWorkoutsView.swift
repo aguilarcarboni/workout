@@ -90,7 +90,7 @@ struct ScheduledWorkoutRow: View {
     
     var body: some View {
         HStack {
-            Image(systemName: iconForActivityType(scheduledWorkout.plan.workout.activity))
+            Image(systemName: scheduledWorkout.plan.workout.activity.icon)
                 .font(.system(size: 24))
                 .foregroundColor(.accent)
             VStack(alignment: .leading) {

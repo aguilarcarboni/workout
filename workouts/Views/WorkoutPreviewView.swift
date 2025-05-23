@@ -105,7 +105,7 @@ struct WorkoutPreviewView: View {
     private func workoutView(for workout: CustomWorkout, at index: Int) -> some View {
         VStack(spacing: 20) {
             HStack {
-                Image(systemName: iconForActivityType(workout.activity))
+                Image(systemName: workout.activity.icon)
                     .font(.title2)
                     .foregroundStyle(Color("AccentColor"))
                 Text("\(workout.displayName ?? "Unnamed Workout")")

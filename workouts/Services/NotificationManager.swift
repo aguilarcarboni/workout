@@ -40,27 +40,6 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
             return .denied // Or handle as appropriate
         }
     }
-    
-    func sendTestNotification() {
-        Task {
-            let content = UNMutableNotificationContent()
-            content.title = "Test Notification"
-            content.body = "This is a test notification to verify the system is working."
-            content.sound = .default
-            
-            let request = UNNotificationRequest(
-                identifier: UUID().uuidString,
-                content: content,
-                trigger: nil
-            )
-            
-            do {
-                try await notificationCenter.add(request)
-            } catch {
-                print("Failed to send test notification: \(error.localizedDescription)")
-            }
-        }
-    }
 
     func sendWorkoutNotification(scheduledWorkoutPlan: ScheduledWorkoutPlan) {
         Task {
