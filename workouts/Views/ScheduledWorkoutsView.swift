@@ -2,7 +2,9 @@ import SwiftUI
 import WorkoutKit
 
 struct ScheduledWorkoutsView: View {
+    
     @State private var scheduledWorkouts: [ScheduledWorkoutPlan] = []
+    @State private var workoutScheduler: WorkoutScheduler = .shared
     @State private var isLoading = true
     
     var body: some View {
@@ -20,13 +22,26 @@ struct ScheduledWorkoutsView: View {
                     List {
                         ForEach(scheduledWorkouts, id: \.plan.id) { scheduledWorkout in
                             ScheduledWorkoutRow(
-                                scheduledWorkout: scheduledWorkout,
-                                onMarkComplete: { 
-                                    markComplete(scheduledWorkout)
-                                }
+                                scheduledWorkout: scheduledWorkout
                             )
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                
+                                if scheduledWorkout.complete == false {
+                                    Button {
+                                        markComplete(scheduledWorkout)
+                                    } label: {
+                                        Label("Mark as Incomplete", systemImage: "xmark")
+                                    }
+                                    .tint(.blue)
+                                }
+                                Button {
+                                    removeWorkout(at: IndexSet([scheduledWorkouts.firstIndex(of: scheduledWorkout)!]))
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                                .tint(.red)
+                            }
                         }
-                        .onDelete(perform: removeWorkout)
                     }
                 }
             }
@@ -42,13 +57,13 @@ struct ScheduledWorkoutsView: View {
     
     private func loadScheduledWorkouts() async {
         isLoading = true
-        scheduledWorkouts = await WorkoutScheduler.shared.scheduledWorkouts
+        scheduledWorkouts = await workoutScheduler.scheduledWorkouts
         isLoading = false
     }
     
     private func markComplete(_ scheduledWorkout: ScheduledWorkoutPlan) {
         Task {
-            await WorkoutScheduler.shared.markComplete(
+            await workoutScheduler.markComplete(
                 scheduledWorkout.plan,
                 at: scheduledWorkout.date
             )
@@ -60,7 +75,7 @@ struct ScheduledWorkoutsView: View {
         let workoutsToRemove = offsets.map { scheduledWorkouts[$0] }
         Task {
             for workout in workoutsToRemove {
-                await WorkoutScheduler.shared.remove(
+                await workoutScheduler.remove(
                     workout.plan,
                     at: workout.date
                 )
@@ -72,24 +87,28 @@ struct ScheduledWorkoutsView: View {
 
 struct ScheduledWorkoutRow: View {
     let scheduledWorkout: ScheduledWorkoutPlan
-    let onMarkComplete: () -> Void
     
     var body: some View {
-        VStack(alignment: .leading) {
-            Text("Workout")
-                .font(.headline)
-            if let date = Calendar.current.date(from: scheduledWorkout.date) {
-                Text(date, style: .date)
-                    .font(.subheadline)
-                Text(date, style: .time)
-                    .font(.subheadline)
+        HStack {
+            Image(systemName: iconForActivityType(scheduledWorkout.plan.workout.activity))
+                .font(.system(size: 24))
+                .foregroundColor(.accent)
+            VStack(alignment: .leading) {
+                Text(scheduledWorkout.plan.workout.activity.name)
+                    .font(.headline)
+                if let date = Calendar.current.date(from: scheduledWorkout.date) {
+                    Text(date, style: .date)
+                        .font(.subheadline)
+                    Text(date, style: .time)
+                        .font(.subheadline)
+                }
+                if scheduledWorkout.complete == true {
+                    Text("Completed")
+                        .font(.subheadline)
+                        .foregroundColor(.green)
+                }
             }
-            // You can add more details or actions here, but no explicit Remove button is needed.
-        }
-        .padding(.vertical, 8)
+            .padding(.vertical, 8)
+        }  
     }
 }
-
-#Preview {
-    ScheduledWorkoutsView()
-} 

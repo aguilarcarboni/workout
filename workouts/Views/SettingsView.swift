@@ -2,46 +2,42 @@ import SwiftUI
 import WorkoutKit
 
 struct SettingsView: View {
-    @State private var workoutScheduler: WorkoutScheduler = .shared
     
-    @State private var isHealthAuthorized: Bool = false
-    @State private var isWorkoutAuthorized: Bool = false
+    @State private var workoutScheduler: WorkoutScheduler = .shared
+    @State private var notificationManager: NotificationManager = .shared
+
+    @State private var workoutAuthorizationState: WorkoutScheduler.AuthorizationState = .notDetermined
+    @State private var notificationAuthorizationState: UNAuthorizationStatus = .notDetermined
     
     var body: some View {
         NavigationView {
             VStack(alignment: .leading, spacing: 20) {
                 List {
                     Section("Authorization") {
-                        Button(isWorkoutAuthorized ? "Watch Sync Authorized" : "Authorize Watch Sync") {
+                        Button(workoutAuthorizationState == .authorized ? "Watch Sync Authorized" : "Authorize Watch Sync") {
                             Task {
-                                await workoutScheduler.requestAuthorization()
-                                await refreshAuthorizationStates()
+                                workoutAuthorizationState = await workoutScheduler.requestAuthorization()
                             }
                         }
                         .buttonStyle(.plain)
-                        .foregroundColor(isWorkoutAuthorized ? Color("AccentColor") : .primary)
+                        .foregroundColor(workoutAuthorizationState == .authorized ? Color("AccentColor") : .primary)
+                    }
+                    Section(header: Text("Notifications")) {
+                        Button(notificationAuthorizationState == .authorized ? "Notifications Authorized" : "Authorize Notifications") {
+                            Task {
+                                notificationAuthorizationState = await notificationManager.requestAuthorization()
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundColor(notificationAuthorizationState == .authorized ? Color("AccentColor") : .primary)
                     }
                 }
             }
             .navigationTitle("Settings")
             .task {
-                await refreshAuthorizationStates()
+                workoutAuthorizationState = await workoutScheduler.requestAuthorization()
+                notificationAuthorizationState = await notificationManager.requestAuthorization()
             }
         }
     }
-    
-    func refreshAuthorizationStates() async {
-        if let workoutAuth = await getWorkoutAuthorization() {
-            isWorkoutAuthorized = workoutAuth
-        }
-    }
-    func getWorkoutAuthorization() async -> Bool? {
-        // If authorizationState is @Published and not async, just check equality
-        return workoutScheduler.authorizationState == .authorized
-    }
-}
-
-
-#Preview {
-    SettingsView()
 }

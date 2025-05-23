@@ -10,14 +10,44 @@ import WorkoutKit
 import HealthKit
 
 struct WorkoutPreviewView: View {
+
+    @State private var notificationManager: NotificationManager = .shared
     let workoutSequence: WorkoutSequence
-    @State private var showWorkout: Bool = false
-    @State private var s: Int = 0
-    @State private var scheduledDate: Date = Date()
-    @State private var scheduledWorkoutPlans: [ScheduledWorkoutPlan] = []
+
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.colorScheme) private var colorScheme
-    
+
+    private func scheduleWorkoutSequence() async {
+        
+        var currentDate = Date()
+        
+        // Add safety check for empty workout sequence
+        guard !workoutSequence.workouts.isEmpty else {
+            fatalError("No workouts in sequence")
+        }
+        
+        for workout in workoutSequence.workouts {
+            do {
+
+                let workoutPlanWorkout = WorkoutPlan.Workout.custom(workout)
+                let plan = WorkoutPlan(workoutPlanWorkout, id: UUID())
+
+                let dateComponents = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: currentDate)
+                
+                await WorkoutScheduler.shared.schedule(plan, at: dateComponents)
+                currentDate = Calendar.current.date(byAdding: .minute, value: 5, to: currentDate) ?? currentDate
+
+                // Send notification for the workout
+                let scheduledWorkout = ScheduledWorkoutPlan(plan, date: dateComponents)
+                notificationManager.sendWorkoutNotification(scheduledWorkoutPlan: scheduledWorkout)
+                
+            } catch {
+                fatalError("Failed to schedule workout: \(error)")
+            }
+        }
+
+    }
+
+    // Views
     var body: some View {
         ZStack {
             backgroundGradient
@@ -223,7 +253,6 @@ struct WorkoutPreviewView: View {
         .clipShape(RoundedRectangle(cornerRadius: 15))
     }
 
-    // Alerts
     private func alertDescription(for alert: any WorkoutAlert) -> some View {
         HStack {
             Image(systemName: alertIcon(for: alert))
@@ -233,7 +262,8 @@ struct WorkoutPreviewView: View {
                 .foregroundStyle(.secondary)
         }
     }
-    
+
+    // Mappers
     private func alertIcon(for alert: any WorkoutAlert) -> String {
         switch alert {
         case is HeartRateRangeAlert, is HeartRateZoneAlert:
@@ -297,7 +327,6 @@ struct WorkoutPreviewView: View {
         }
     }
 
-    // Goals
     private func goalDescription(for goal: WorkoutGoal) -> Text {
         switch goal {
         case .time(let duration, let unit):
@@ -324,139 +353,7 @@ struct WorkoutPreviewView: View {
         let seconds = Int(timeInterval) % 60
         return String(format: "%02d:%02d", minutes, seconds)
     }
-    
-    private func scheduleWorkoutSequence() async {
-        scheduledWorkoutPlans.removeAll()
-        var currentDate = scheduledDate
-        
-        // Add safety check for empty workout sequence
-        guard !workoutSequence.workouts.isEmpty else {
-            print("No workouts in sequence")
-            return
-        }
-        
-        for workout in workoutSequence.workouts {
-            do {
-                let workoutPlanWorkout = WorkoutPlan.Workout.custom(workout)
-                let plan = WorkoutPlan(workoutPlanWorkout, id: UUID())
-                
-                let dateComponents = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: currentDate)
-                
-                await WorkoutScheduler.shared.schedule(plan, at: dateComponents)
-                
-                let scheduledWorkout = ScheduledWorkoutPlan(plan, date: dateComponents)
-                scheduledWorkoutPlans.append(scheduledWorkout)
-                
-                // Add 5 minutes for the next workout
-                currentDate = Calendar.current.date(byAdding: .minute, value: 5, to: currentDate) ?? currentDate
-                
-                print("Workout \(scheduledWorkoutPlans.count) of \(workoutSequence.workouts.count) scheduled successfully")
-            } catch {
-                print("Failed to schedule workout: \(error)")
-            }
-        }
-        
-        // Only show workout view if we have successfully scheduled workouts
-        guard !scheduledWorkoutPlans.isEmpty else {
-            print("No workouts were scheduled")
-            return
-        }
-        
-        // Verify counts match
-        guard scheduledWorkoutPlans.count == workoutSequence.workouts.count else {
-            print("Warning: Not all workouts were scheduled successfully")
-            return
-        }
-        
-        // showWorkout = true // removed
-    }
-    
-    private func iconForActivityType(_ activityType: HKWorkoutActivityType) -> String {
-        switch activityType {
-        case .archery: return "figure.archery"
-        case .bowling: return "figure.bowling"
-        case .fencing: return "figure.fencing"
-        case .gymnastics: return "figure.gymnastics"
-        case .trackAndField: return "figure.track.and.field"
-        case .americanFootball: return "figure.american.football"
-        case .australianFootball: return "figure.australian.football"
-        case .baseball: return "figure.baseball"
-        case .basketball: return "figure.basketball"
-        case .cricket: return "figure.cricket"
-        case .discSports: return "figure.disc.sports"
-        case .handball: return "figure.handball"
-        case .hockey: return "figure.hockey"
-        case .lacrosse: return "figure.lacrosse"
-        case .rugby: return "figure.rugby"
-        case .soccer: return "figure.outdoor.soccer"
-        case .softball: return "figure.softball"
-        case .volleyball: return "figure.volleyball"
-        case .preparationAndRecovery: return "figure.cooldown"
-        case .flexibility: return "figure.flexibility"
-        case .cooldown: return "figure.cooldown"
-        case .walking: return "figure.walk"
-        case .running: return "figure.run"
-        case .wheelchairWalkPace: return "figure.roll"
-        case .wheelchairRunPace: return "figure.roll.runningpace"
-        case .cycling: return "figure.outdoor.cycle"
-        case .handCycling: return "figure.hand.cycling"
-        case .coreTraining: return "figure.core.training"
-        case .elliptical: return "figure.elliptical"
-        case .functionalStrengthTraining: return "figure.strengthtraining.functional"
-        case .traditionalStrengthTraining: return "figure.strengthtraining.traditional"
-        case .crossTraining: return "figure.cross.training"
-        case .mixedCardio: return "figure.mixed.cardio"
-        case .highIntensityIntervalTraining: return "figure.highintensity.intervaltraining"
-        case .jumpRope: return "figure.jumprope"
-        case .stairClimbing: return "figure.stair.stepper"
-        case .stairs: return "figure.stairs"
-        case .stepTraining: return "figure.step.training"
-        case .fitnessGaming: return "gamecontroller"
-        case .barre: return "figure.barre"
-        case .cardioDance: return "figure.dance"
-        case .socialDance: return "figure.socialdance"
-        case .yoga: return "figure.yoga"
-        case .mindAndBody: return "figure.mind.and.body"
-        case .pilates: return "figure.pilates"
-        case .badminton: return "figure.badminton"
-        case .pickleball: return "figure.pickleball"
-        case .racquetball: return "figure.racquetball"
-        case .squash: return "figure.squash"
-        case .tableTennis: return "figure.table.tennis"
-        case .tennis: return "figure.tennis"
-        case .climbing: return "figure.climbing"
-        case .equestrianSports: return "figure.equestrian.sports"
-        case .fishing: return "figure.fishing"
-        case .golf: return "figure.golf"
-        case .hiking: return "figure.hiking"
-        case .hunting: return "figure.hunting"
-        case .play: return "figure.play"
-        case .crossCountrySkiing: return "figure.skiing.crosscountry"
-        case .curling: return "figure.curling"
-        case .downhillSkiing: return "figure.skiing.downhill"
-        case .snowSports: return "figure.snowboarding"
-        case .snowboarding: return "figure.snowboarding"
-        case .skatingSports: return "figure.ice.skating"
-        case .paddleSports: return "figure.surfing"
-        case .rowing: return "figure.indoor.rowing"
-        case .sailing: return "figure.sailing"
-        case .surfingSports: return "figure.surfing"
-        case .swimming: return "figure.pool.swim"
-        case .waterFitness: return "figure.water.fitness"
-        case .waterPolo: return "figure.waterpolo"
-        case .waterSports: return "figure.water.fitness"
-        case .boxing: return "figure.boxing"
-        case .kickboxing: return "figure.kickboxing"
-        case .martialArts: return "figure.martial.arts"
-        case .taiChi: return "figure.taichi"
-        case .wrestling: return "figure.wrestling"
-        case .swimBikeRun: return "figure.cross.training"
-        case .transition: return "arrow.triangle.2.circlepath"
-        case .underwaterDiving: return "figure.pool.swim"
-        case .other: return "figure.walk"
-        @unknown default: return "figure.walk"
-        }
-    }
+
 }
 
 // Extension to safely access array elements
@@ -464,36 +361,4 @@ extension Array {
     subscript(safe index: Index) -> Element? {
         return indices.contains(index) ? self[index] : nil
     }
-}
-
-#Preview {
-    // Create a sample workout sequence for preview
-    let warmupStep = WorkoutStep(goal: .time(120, .seconds))
-    let benchPressStep = WorkoutStep(goal: .time(60, .seconds))
-    let benchPressInterval = IntervalStep(.work, step: benchPressStep)
-    let benchPressBlock = IntervalBlock(steps:[benchPressInterval], iterations: 3)
-    let cooldownStep = WorkoutStep(goal: .time(60, .seconds))
-    
-    let workout1 = CustomWorkout(
-        activity: .functionalStrengthTraining,
-        location: .indoor,
-        displayName: "Bench Press Workout",
-        warmup: warmupStep,
-        blocks: [benchPressBlock],
-        cooldown: cooldownStep
-    )
-    
-    let workout2 = CustomWorkout(
-        activity: .functionalStrengthTraining,
-        location: .indoor,
-        displayName: "Cool Down",
-        blocks: [benchPressBlock]
-    )
-    
-    let sequence = WorkoutSequence(
-        workouts: [workout1, workout2],
-        displayName: "Sample Sequence"
-    )
-    
-    return WorkoutPreviewView(workoutSequence: sequence)
 }

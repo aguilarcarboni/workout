@@ -1,0 +1,107 @@
+import Foundation
+import UserNotifications
+import WorkoutKit
+
+class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterDelegate {
+    
+    static let shared = NotificationManager()
+    private let notificationCenter = UNUserNotificationCenter.current()
+    @Published var authorizationState: UNAuthorizationStatus = .notDetermined
+
+    override init() {
+        super.init()
+        notificationCenter.delegate = self
+        // Check current authorization state on init
+        Task {
+            await checkCurrentAuthorizationStatus()
+        }
+    }
+    
+    private func checkCurrentAuthorizationStatus() async {
+        let settings = await notificationCenter.notificationSettings()
+        DispatchQueue.main.async {
+            self.authorizationState = settings.authorizationStatus
+        }
+    }
+    
+    func requestAuthorization() async -> UNAuthorizationStatus {
+        do {
+            let granted = try await notificationCenter.requestAuthorization(options: [.alert, .sound, .badge])
+            // Update the state on the main thread as it's a @Published property
+            DispatchQueue.main.async {
+                self.authorizationState = granted ? .authorized : .denied
+            }
+            return granted ? .authorized : .denied
+        } catch {
+            // Update the state on the main thread
+            DispatchQueue.main.async {
+                self.authorizationState = .denied // Or handle as appropriate
+            }
+            return .denied // Or handle as appropriate
+        }
+    }
+    
+    func sendTestNotification() {
+        Task {
+            let content = UNMutableNotificationContent()
+            content.title = "Test Notification"
+            content.body = "This is a test notification to verify the system is working."
+            content.sound = .default
+            
+            let request = UNNotificationRequest(
+                identifier: UUID().uuidString,
+                content: content,
+                trigger: nil
+            )
+            
+            do {
+                try await notificationCenter.add(request)
+            } catch {
+                print("Failed to send test notification: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    func sendWorkoutNotification(scheduledWorkoutPlan: ScheduledWorkoutPlan) {
+        Task {
+
+            let content = UNMutableNotificationContent()
+            content.title = "Workout Scheduled for today"
+            content.body = "It's time to do your \(scheduledWorkoutPlan.plan.workout.activity.name) workout!"
+            content.sound = .default
+            
+            // Schedule the notification for 30 seconds in the future
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 5, repeats: false)
+            
+            let request = UNNotificationRequest(
+                identifier: UUID().uuidString,
+                content: content,
+                trigger: trigger // Use the time interval trigger
+            )
+            
+            do {
+                try await notificationCenter.add(request)
+            } catch {
+                print("Failed to send workout notification: \(error.localizedDescription)")
+            }
+        }
+    }
+    
+    // MARK: - Notification Management
+    func getNotifications() async throws -> [UNNotificationRequest] {
+        return await notificationCenter.pendingNotificationRequests()
+    }
+    
+    func removeNotifications() async throws {
+        notificationCenter.removeAllPendingNotificationRequests()
+    }
+    
+    // MARK: - UNUserNotificationCenterDelegate
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner, .sound])
+    }
+    
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+        completionHandler()
+    }
+} 
