@@ -88,25 +88,27 @@ class WorkoutManager: ObservableObject {
 
         // Upper Body Calisthenics Warmup
         let pullUpsStep = WorkoutStep(goal: .open, displayName: "Pull Ups")
-        let pullUpsInterval = IntervalStep(.work, step: pullUpsStep)
         let dipsStep = WorkoutStep(goal: .open, displayName: "Dips")
+        let pullUpsInterval = IntervalStep(.work, step: pullUpsStep)
         let dipsInterval = IntervalStep(.work, step: dipsStep)
         let calisthenicsBlock = IntervalBlock(steps: [pullUpsInterval, recoveryInterval, dipsInterval, recoveryInterval], iterations: 2)
 
-        // Upper Body Functional Strength
+        // Back Functional Strength
         let latPulldownStep = WorkoutStep(goal: .open, displayName: "Lat Pulldown")
         let latPullDownInterval = IntervalStep(.work, step: latPulldownStep)
         let latPulldownBlock = IntervalBlock(steps: [latPullDownInterval, recoveryInterval], iterations: 3)
 
-        let benchPressStep = WorkoutStep(goal: .open, displayName: "Bench Press") 
+        // Chest Functional Strength
+        let benchPressStep = WorkoutStep(goal: .open, displayName: "Bench Press")
         let benchPressInterval = IntervalStep(.work, step: benchPressStep)
         let benchPressBlock = IntervalBlock(steps: [benchPressInterval, recoveryInterval], iterations: 3)
 
-        // Upper Body Muscular Endurance
+        // Back Muscular Endurance
         let pullbackStep = WorkoutStep(goal: .open, displayName: "Cable Pullover")
         let pullbackInterval = IntervalStep(.work, step: pullbackStep)
         let pullbackBlock = IntervalBlock(steps: [pullbackInterval, recoveryInterval], iterations: 3)
 
+        // Chest Muscular Endurance
         let chestFlyStep = WorkoutStep(goal: .open, displayName: "Chest Flys")
         let chestFlyInterval = IntervalStep(.work, step: chestFlyStep)
         let chestFlyBlock = IntervalBlock(steps: [chestFlyInterval, recoveryInterval], iterations: 3)
