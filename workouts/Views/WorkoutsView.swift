@@ -33,7 +33,6 @@ struct WorkoutsView: View {
                     }
                 }
             }
-            .padding(.vertical, 16)
             .navigationTitle("Workout Sequences")
         }
     }
