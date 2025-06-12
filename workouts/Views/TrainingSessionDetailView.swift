@@ -1,45 +1,31 @@
-//
-//  WorkoutPreviewView.swift
-//  workouts
-//
-//  Created by Andrés on 5/4/2025.
-//
-
 import SwiftUI
 import WorkoutKit
 import HealthKit
 
-struct WorkoutPreviewView: View {
-
+struct TrainingSessionDetailView: View {
     @State private var notificationManager: NotificationManager = .shared
-    let workoutSequence: WorkoutSequence
-
+    let trainingSession: TrainingSession
     @Environment(\.dismiss) private var dismiss
-
-    private func scheduleWorkoutSequence() async {
+    
+    private func scheduleTrainingSession() async {
+        let customWorkouts = trainingSession.toWorkoutKitType()
         
-        var currentDate = Date()
-        
-        // Add safety check for empty workout sequence
-        guard !workoutSequence.workouts.isEmpty else {
-            fatalError("No workouts in sequence")
+        for (index, customWorkout) in customWorkouts.enumerated() {
+            let workoutPlanWorkout = WorkoutPlan.Workout.custom(customWorkout)
+            let plan = WorkoutPlan(workoutPlanWorkout, id: UUID())
+            
+            // Schedule workouts sequentially with some spacing
+            let schedulingDate = Date().addingTimeInterval(TimeInterval(index * 300)) // 5 minutes apart
+            let dateComponents = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: schedulingDate)
+            
+            await WorkoutScheduler.shared.schedule(plan, at: dateComponents)
+            
+            // Send notification for each workout
+            let scheduledWorkout = ScheduledWorkoutPlan(plan, date: dateComponents)
+            notificationManager.sendWorkoutNotification(scheduledWorkoutPlan: scheduledWorkout)
         }
-        
-        // Convert WorkoutSequence to CustomWorkout using our OOP structure
-        let customWorkout = workoutSequence.toWorkoutKitType()
-        let workoutPlanWorkout = WorkoutPlan.Workout.custom(customWorkout)
-        let plan = WorkoutPlan(workoutPlanWorkout, id: UUID())
-
-        let dateComponents = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: currentDate)
-        
-        await WorkoutScheduler.shared.schedule(plan, at: dateComponents)
-
-        // Send notification for the workout
-        let scheduledWorkout = ScheduledWorkoutPlan(plan, date: dateComponents)
-        notificationManager.sendWorkoutNotification(scheduledWorkoutPlan: scheduledWorkout)
     }
-
-    // Views
+    
     var body: some View {
         ZStack {
             backgroundGradient
@@ -64,7 +50,7 @@ struct WorkoutPreviewView: View {
         ScrollView {
             VStack(spacing: 25) {
                 headerView
-                workoutSequenceView
+                trainingSessionContent
                 controlButtons
             }
         }
@@ -72,12 +58,12 @@ struct WorkoutPreviewView: View {
     
     private var headerView: some View {
         VStack(spacing: 8) {
-            Text(workoutSequence.displayName)
+            Text(trainingSession.displayName)
                 .font(.system(size: 34, weight: .bold, design: .rounded))
                 .foregroundStyle(.primary)
                 .multilineTextAlignment(.center)
             
-            Text("\(workoutSequence.workouts.count) workout\(workoutSequence.workouts.count == 1 ? "" : "s") in sequence")
+            Text(sessionDescription)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -85,36 +71,163 @@ struct WorkoutPreviewView: View {
         .padding(.top)
     }
     
-    private var workoutSequenceView: some View {
-        VStack(spacing: 30) {
-            ForEach(0..<workoutSequence.workouts.count, id: \.self) { index in
-                let workout = workoutSequence.workouts[index]
-                workoutView(for: workout, at: index)
+    private var sessionDescription: String {
+        var components: [String] = []
+        
+        if trainingSession.warmup != nil {
+            components.append("Warmup")
+        }
+        
+        components.append("\(trainingSession.workoutSequences.count) sequence\(trainingSession.workoutSequences.count == 1 ? "" : "s")")
+        
+        if trainingSession.cooldown != nil {
+            components.append("Cooldown")
+        }
+        
+        return components.joined(separator: " • ")
+    }
+    
+    private var trainingSessionContent: some View {
+        VStack(spacing: 20) {
+            // Warmup Section
+            if let warmup = trainingSession.warmup {
+                warmupSection(warmup)
+            }
+            
+            // Main Workout Sequences
+            ForEach(Array(trainingSession.workoutSequences.enumerated()), id: \.offset) { index, sequence in
+                workoutSequenceSection(sequence, index: index)
+            }
+            
+            // Cooldown Section
+            if let cooldown = trainingSession.cooldown {
+                cooldownSection(cooldown)
             }
         }
     }
     
-    private func workoutView(for workout: Workout, at index: Int) -> some View {
-        VStack(spacing: 20) {
+    private func warmupSection(_ warmup: Warmup) -> some View {
+        sessionPhaseView(
+            title: warmup.displayName,
+            workouts: warmup.workouts,
+            color: .orange,
+            icon: "figure.walk"
+        )
+    }
+    
+    private func workoutSequenceSection(_ sequence: WorkoutSequence, index: Int) -> some View {
+        VStack(spacing: 15) {
             HStack {
-                Image(systemName: workoutSequence.activity.icon)
+                Image(systemName: sequence.activity.icon)
                     .font(.title2)
                     .foregroundStyle(Color("AccentColor"))
-                Text(workout.displayName)
+                Text(sequence.displayName)
                     .font(.title2)
                     .fontWeight(.bold)
+                Spacer()
+            }
+            .padding(.horizontal)
+            
+            ForEach(Array(sequence.workouts.enumerated()), id: \.offset) { workoutIndex, workout in
+                workoutView(for: workout)
+            }
+        }
+        .padding()
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 15))
+        .padding(.horizontal)
+    }
+    
+    private func cooldownSection(_ cooldown: Cooldown) -> some View {
+        sessionPhaseView(
+            title: cooldown.displayName,
+            workouts: cooldown.workouts,
+            color: .blue,
+            icon: "figure.cooldown"
+        )
+    }
+    
+    private func sessionPhaseView(title: String, workouts: [Workout], color: Color, icon: String) -> some View {
+        VStack(spacing: 15) {
+            HStack {
+                Image(systemName: icon)
+                    .font(.title2)
+                    .foregroundStyle(color)
+                Text(title)
+                    .font(.title2)
+                    .fontWeight(.bold)
+                Spacer()
+            }
+            .padding(.horizontal)
+            
+            ForEach(Array(workouts.enumerated()), id: \.offset) { index, workout in
+                workoutView(for: workout)
+            }
+        }
+        .padding()
+        .background(color.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 15))
+        .padding(.horizontal)
+    }
+    
+    private func workoutView(for workout: Workout) -> some View {
+        VStack(spacing: 15) {
+            let intervalBlock = workout.toWorkoutKitType()
+            intervalBlockView(intervalBlock)
+        }
+    }
+    
+    private func intervalBlockView(_ block: IntervalBlock) -> some View {
+        VStack(spacing: 10) {
+            HStack {
+                Image(systemName: "repeat.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(Color("AccentColor"))
+                Text("\(block.iterations) set\(block.iterations > 1 ? "s" : "")")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                Spacer()
             }
             
-            workoutDetailsView(for: workout)
+            ForEach(Array(block.steps.enumerated()), id: \.offset) { stepIndex, step in
+                if let intervalStep = step as? IntervalStep {
+                    intervalStepView(intervalStep)
+                }
+            }
         }
+        .padding()
+        .background(Color(.tertiarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+    
+    private func intervalStepView(_ step: IntervalStep) -> some View {
+        let isRest = step.purpose == .recovery
+        let stepColor = isRest ? Color.yellow : Color("AccentColor")
+        
+        return HStack(spacing: 15) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(step.step.displayName ?? (isRest ? "Rest" : "Exercise"))
+                    .font(.headline)
+                
+                goalDescription(for: step.step.goal)
+                
+                if let alert = step.step.alert {
+                    alertDescription(for: alert)
+                }
+            }
+            Spacer()
+        }
+        .padding(.vertical, 8)
         .padding(.horizontal)
+        .background(stepColor.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
     
     private var controlButtons: some View {
         VStack(spacing: 15) {
             Button(action: {
                 Task {
-                    await scheduleWorkoutSequence()
+                    await scheduleTrainingSession()
                     dismiss()
                 }
             }) {
@@ -134,89 +247,8 @@ struct WorkoutPreviewView: View {
         .padding(.bottom, 30)
     }
     
-    private func workoutDetailsView(for workout: Workout) -> some View {
-        VStack(spacing: 15) {
-            // Convert our Workout to IntervalBlock to access its structure
-            let intervalBlock = workout.toWorkoutKitType()
-            intervalBlockView(intervalBlock, blockIndex: 0)
-        }
-    }
+    // MARK: - Helper Functions
     
-    private func intervalBlockView(_ block: IntervalBlock, blockIndex: Int) -> some View {
-        VStack(spacing: 10) {
-            HStack {
-                Image(systemName: "repeat.circle.fill")
-                    .font(.title2)
-                    .foregroundStyle(Color("AccentColor"))
-                Text("\(block.iterations) set\(block.iterations > 1 ? "s" : "")")
-                    .font(.headline)
-                Spacer()
-            }
-            
-            ForEach(Array(block.steps.enumerated()), id: \.offset) { stepIndex, step in
-                if let intervalStep = step as? IntervalStep {
-                    intervalStepView(intervalStep, color: Color("AccentColor"))
-                }
-            }
-        }
-        .padding()
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 15))
-    }
-    
-    private func intervalStepView(_ step: IntervalStep, color: Color) -> some View {
-        let isRest = step.purpose == .recovery
-        let stepColor = isRest ? Color.yellow : color
-        
-        return HStack(spacing: 15) {
-
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text(step.step.displayName ?? (isRest ? "Rest" : "Exercise"))
-                        .font(.headline)
-                }
-            
-                goalDescription(for: step.step.goal)
-                
-                if let alert = step.step.alert {
-                    alertDescription(for: alert)
-                }
-            }
-            Spacer()
-        }
-        .padding(.vertical, 8)
-        .padding(.horizontal)
-        .background(stepColor.opacity(0.1))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-    }
-    
-    private func workoutPhaseCard(title: String, step: WorkoutStep, color: Color, icon: String) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Image(systemName: icon)
-                    .font(.title2)
-                    .foregroundStyle(color)
-                    .frame(width: 40)
-                
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(title)
-                        .font(.headline)
-                    goalDescription(for: step.goal)
-                }
-                
-                Spacer()
-            }
-            
-            if let alert = step.alert {
-                alertDescription(for: alert)
-                    .padding(.leading, 40)
-            }
-        }
-        .padding()
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 15))
-    }
-
     private func alertDescription(for alert: any WorkoutAlert) -> some View {
         HStack {
             Image(systemName: alertIcon(for: alert))
@@ -226,8 +258,7 @@ struct WorkoutPreviewView: View {
                 .foregroundStyle(.secondary)
         }
     }
-
-    // Mappers
+    
     private func alertIcon(for alert: any WorkoutAlert) -> String {
         switch alert {
         case is HeartRateRangeAlert, is HeartRateZoneAlert:
@@ -290,7 +321,7 @@ struct WorkoutPreviewView: View {
             return "Target Zone Alert"
         }
     }
-
+    
     private func goalDescription(for goal: WorkoutGoal) -> Text {
         switch goal {
         case .time(let duration, let unit):
@@ -311,18 +342,10 @@ struct WorkoutPreviewView: View {
                 .foregroundStyle(.secondary)
         }
     }
-
+    
     private func timeString(from timeInterval: TimeInterval) -> String {
         let minutes = Int(timeInterval) / 60
         let seconds = Int(timeInterval) % 60
         return String(format: "%02d:%02d", minutes, seconds)
     }
-
-}
-
-// Extension to safely access array elements
-extension Array {
-    subscript(safe index: Index) -> Element? {
-        return indices.contains(index) ? self[index] : nil
-    }
-}
+} 
