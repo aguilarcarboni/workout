@@ -39,6 +39,10 @@ extension HKWorkoutActivityType {
             return "Workout"
         }
     }
+    
+    var displayName: String {
+        return name
+    }
 }
 
 extension HKWorkoutActivityType {
@@ -126,6 +130,21 @@ extension HKWorkoutActivityType {
         case .underwaterDiving: return "figure.pool.swim"
         case .other: return "figure.walk"
         default: return "figure.walk"
+        }
+    }
+}
+
+extension HKWorkoutSessionLocationType {
+    var displayName: String {
+        switch self {
+        case .indoor:
+            return "Indoor"
+        case .outdoor:
+            return "Outdoor"
+        case .unknown:
+            return "Unknown"
+        @unknown default:
+            return "Unknown"
         }
     }
 }

@@ -7,7 +7,7 @@ struct WorkoutsView: View {
     @State var workoutManager: WorkoutManager = .shared
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Group {
                 if workoutManager.trainingSessions.isEmpty {
                     ContentUnavailableView(
@@ -31,6 +31,15 @@ struct WorkoutsView: View {
                 }
             }
             .navigationTitle("Training Sessions")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        print("Add Workout")
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                }
+            }
         }
         .onAppear {
             Task {
@@ -46,7 +55,7 @@ struct TrainingSessionRow: View {
     
     var body: some View {
         Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text(session.displayName)
                     .font(.headline)
                     .foregroundColor(.primary)
@@ -75,3 +84,4 @@ struct TrainingSessionRow: View {
         .buttonStyle(.plain)
     }
 }
+

@@ -2,7 +2,7 @@ import SwiftUI
 
 struct RecoveryView: View {
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ContentUnavailableView(
                 "Coming soon...",
                 systemImage: "figure.mind.and.body",

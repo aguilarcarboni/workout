@@ -4,6 +4,7 @@ import HealthKit
 
 struct TrainingSessionDetailView: View {
     @State private var notificationManager: NotificationManager = .shared
+    @State private var expandedWorkouts: Set<String> = []
     let trainingSession: TrainingSession
     @Environment(\.dismiss) private var dismiss
     
@@ -27,48 +28,101 @@ struct TrainingSessionDetailView: View {
     }
     
     var body: some View {
-        ZStack {
-            backgroundGradient
-            mainContent
-        }
-        .padding(.vertical, 20)
-    }
-    
-    private var backgroundGradient: some View {
-        LinearGradient(
-            gradient: Gradient(colors: [
-                Color(.systemBackground),
-                Color(.systemBackground).opacity(0.8)
-            ]),
-            startPoint: .top,
-            endPoint: .bottom
-        )
-        .ignoresSafeArea()
-    }
-    
-    private var mainContent: some View {
-        ScrollView {
-            VStack(spacing: 25) {
-                headerView
-                trainingSessionContent
-                controlButtons
+        NavigationStack {
+            VStack {
+                headerSection
+                List {
+                    
+                    // Warmup Section
+                    if let warmup = trainingSession.warmup {
+                        warmupSection(warmup)
+                    }
+                    
+                    // Main Workout Sequences
+                    ForEach(Array(trainingSession.workoutSequences.enumerated()), id: \.offset) { index, sequence in
+                        workoutSequenceSection(sequence, index: index)
+                    }
+                    
+                    // Cooldown Section
+                    if let cooldown = trainingSession.cooldown {
+                        cooldownSection(cooldown)
+                    }
+                }
+                .navigationTitle("")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        HStack {
+                            Button {
+                                print(trainingSession.printableDescription())
+                            } label: {
+                                Image(systemName: "doc.text")
+                            }
+                            
+                            Button {
+                                Task {
+                                    await scheduleTrainingSession()
+                                    dismiss()
+                                }
+                            } label: {
+                                Image(systemName: "applewatch")
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(Color("AccentColor"))
+                            .foregroundStyle(.black)
+                        }
+                    }
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button {
+                            dismiss()
+                        } label: {
+                            Image(systemName: "xmark")
+                        }
+                    }
+                }
             }
         }
     }
     
-    private var headerView: some View {
-        VStack(spacing: 8) {
-            Text(trainingSession.displayName)
-                .font(.system(size: 34, weight: .bold, design: .rounded))
-                .foregroundStyle(.primary)
-                .multilineTextAlignment(.center)
-            
-            Text(sessionDescription)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+    private var headerSection: some View {
+        Section {
+            VStack(alignment: .center, spacing: 12) {
+                Text(trainingSession.displayName)
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+                
+                // Fitness metrics overview
+                fitnessMetricsOverview
+            }
         }
-        .padding(.top)
+    }
+    
+    private var fitnessMetricsOverview: some View {
+        let allMetrics = getAllTargetMetrics().sorted { sortFitnessMetrics($0, $1) }
+        
+        return VStack(alignment: .center, spacing: 8) {
+            Text("TARGET FITNESS METRICS")
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundStyle(.secondary)
+            
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 8) {
+                ForEach(allMetrics, id: \.self) { metric in
+                    HStack {
+                        Image(systemName: iconForFitnessMetric(metric))
+                            .font(.caption)
+                            .foregroundStyle(colorForFitnessMetric(metric))
+                        Text(metric.rawValue)
+                            .font(.caption)
+                            .fontWeight(.medium)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(colorForFitnessMetric(metric).opacity(0.1))
+                    .cornerRadius(12)
+                }
+            }
+        }
     }
     
     private var sessionDescription: String {
@@ -87,172 +141,284 @@ struct TrainingSessionDetailView: View {
         return components.joined(separator: " • ")
     }
     
-    private var trainingSessionContent: some View {
-        VStack(spacing: 20) {
-            // Warmup Section
-            if let warmup = trainingSession.warmup {
-                warmupSection(warmup)
-            }
-            
-            // Main Workout Sequences
-            ForEach(Array(trainingSession.workoutSequences.enumerated()), id: \.offset) { index, sequence in
-                workoutSequenceSection(sequence, index: index)
-            }
-            
-            // Cooldown Section
-            if let cooldown = trainingSession.cooldown {
-                cooldownSection(cooldown)
+    private func warmupSection(_ warmup: Warmup) -> some View {
+        Section("Warmup") {
+            ForEach(Array(warmup.workouts.enumerated()), id: \.offset) { index, workout in
+                workoutRow(for: workout, icon: "figure.walk", workoutId: "warmup-\(index)")
             }
         }
-    }
-    
-    private func warmupSection(_ warmup: Warmup) -> some View {
-        sessionPhaseView(
-            title: warmup.displayName,
-            workouts: warmup.workouts,
-            color: .orange,
-            icon: "figure.walk"
-        )
     }
     
     private func workoutSequenceSection(_ sequence: WorkoutSequence, index: Int) -> some View {
-        VStack(spacing: 15) {
-            HStack {
-                Image(systemName: sequence.activity.icon)
-                    .font(.title2)
-                    .foregroundStyle(Color("AccentColor"))
-                Text(sequence.displayName)
-                    .font(.title2)
-                    .fontWeight(.bold)
-                Spacer()
-            }
-            .padding(.horizontal)
-            
+        Section(sequence.displayName) {
             ForEach(Array(sequence.workouts.enumerated()), id: \.offset) { workoutIndex, workout in
-                workoutView(for: workout)
+                workoutRow(for: workout, icon: sequence.activity.icon, workoutId: "sequence-\(index)-\(workoutIndex)")
             }
         }
-        .padding()
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 15))
-        .padding(.horizontal)
     }
     
     private func cooldownSection(_ cooldown: Cooldown) -> some View {
-        sessionPhaseView(
-            title: cooldown.displayName,
-            workouts: cooldown.workouts,
-            color: .blue,
-            icon: "figure.cooldown"
-        )
-    }
-    
-    private func sessionPhaseView(title: String, workouts: [Workout], color: Color, icon: String) -> some View {
-        VStack(spacing: 15) {
-            HStack {
-                Image(systemName: icon)
-                    .font(.title2)
-                    .foregroundStyle(color)
-                Text(title)
-                    .font(.title2)
-                    .fontWeight(.bold)
-                Spacer()
-            }
-            .padding(.horizontal)
-            
-            ForEach(Array(workouts.enumerated()), id: \.offset) { index, workout in
-                workoutView(for: workout)
+        Section("Cooldown") {
+            ForEach(Array(cooldown.workouts.enumerated()), id: \.offset) { index, workout in
+                workoutRow(for: workout, icon: "figure.cooldown", workoutId: "cooldown-\(index)")
             }
         }
-        .padding()
-        .background(color.opacity(0.1))
-        .clipShape(RoundedRectangle(cornerRadius: 15))
-        .padding(.horizontal)
     }
     
-    private func workoutView(for workout: Workout) -> some View {
-        VStack(spacing: 15) {
-            let intervalBlock = workout.toWorkoutKitType()
-            intervalBlockView(intervalBlock)
-        }
-    }
-    
-    private func intervalBlockView(_ block: IntervalBlock) -> some View {
-        VStack(spacing: 10) {
-            HStack {
-                Image(systemName: "repeat.circle.fill")
-                    .font(.title3)
-                    .foregroundStyle(Color("AccentColor"))
-                Text("\(block.iterations) set\(block.iterations > 1 ? "s" : "")")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                Spacer()
-            }
-            
-            ForEach(Array(block.steps.enumerated()), id: \.offset) { stepIndex, step in
-                if let intervalStep = step as? IntervalStep {
-                    intervalStepView(intervalStep)
-                }
-            }
-        }
-        .padding()
-        .background(Color(.tertiarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-    }
-    
-    private func intervalStepView(_ step: IntervalStep) -> some View {
-        let isRest = step.purpose == .recovery
-        let stepColor = isRest ? Color.yellow : Color("AccentColor")
+    private func workoutRow(for workout: Workout, icon: String, workoutId: String) -> some View {
+        let intervalBlock = workout.toWorkoutKitType()
+        let isExpanded = expandedWorkouts.contains(workoutId)
         
-        return HStack(spacing: 15) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(step.step.displayName ?? (isRest ? "Rest" : "Exercise"))
-                    .font(.headline)
-                
-                goalDescription(for: step.step.goal)
-                
-                if let alert = step.step.alert {
-                    alertDescription(for: alert)
-                }
-            }
-            Spacer()
-        }
-        .padding(.vertical, 8)
-        .padding(.horizontal)
-        .background(stepColor.opacity(0.1))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-    }
-    
-    private var controlButtons: some View {
-        VStack(spacing: 15) {
+        return VStack(alignment: .leading, spacing: 8) {
             Button(action: {
-                Task {
-                    await scheduleTrainingSession()
-                    dismiss()
+                if isExpanded {
+                    expandedWorkouts.remove(workoutId)
+                } else {
+                    expandedWorkouts.insert(workoutId)
                 }
             }) {
                 HStack {
-                    Image(systemName: "applewatch")
-                    Text("Send to Watch")
-                        .fontWeight(.semibold)
+                    Image(systemName: icon)
+                        .foregroundStyle(Color("AccentColor"))
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(workout.displayName)
+                            .font(.headline)
+                        
+                        HStack {
+                            Image(systemName: "repeat")
+                                .foregroundStyle(Color("AccentColor"))
+                                .font(.caption)
+                            Text("\(intervalBlock.iterations) set\(intervalBlock.iterations > 1 ? "s" : "")")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            
+                            if let workoutType = workout.workoutType {
+                                Spacer()
+                                Text(workoutType.rawValue)
+                                    .font(.caption2)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(.ultraThinMaterial)
+                                    .cornerRadius(8)
+                            }
+                        }
+                        
+                        // Show target muscles
+                        if !workout.targetMuscles.isEmpty {
+                            HStack {
+                                Image(systemName: "figure.arms.open")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                Text(workout.targetMuscles.map { $0.rawValue }.joined(separator: ", "))
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                        }
+                        
+                        // Show target fitness metrics
+                        if !workout.targetMetrics.isEmpty {
+                            HStack {
+                                Image(systemName: "target")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                Text(workout.targetMetrics.sorted { sortFitnessMetrics($0, $1) }.map { $0.rawValue }.joined(separator: ", "))
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                        }
+                    }
+                    
+                    Spacer()
+                    
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .foregroundStyle(.secondary)
+                        .font(.caption)
                 }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color("AccentColor"))
-                .foregroundColor(Color.black)
-                .clipShape(RoundedRectangle(cornerRadius: 20))
+            }
+            .buttonStyle(PlainButtonStyle())
+            .foregroundColor(.primary)
+            
+            if isExpanded {
+                exerciseDetailsView(for: intervalBlock, workout: workout)
             }
         }
-        .padding(.horizontal)
-        .padding(.bottom, 30)
+        .padding(.vertical, 4)
+    }
+    
+    private func exerciseDetailsView(for block: IntervalBlock, workout: Workout) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(Array(block.steps.enumerated()), id: \.offset) { stepIndex, step in
+                if let intervalStep = step as? IntervalStep {
+                    let exercise = getExerciseForStep(stepIndex, workout: workout)
+                    intervalStepView(intervalStep, exercise: exercise)
+                }
+            }
+        }
+        .padding(.leading, 16)
+    }
+    
+    private func intervalStepView(_ step: IntervalStep, exercise: Exercise?) -> some View {
+        let isRest = step.purpose == .recovery
+        
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(isRest ? "Rest" : "Exercise")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                Spacer()
+            }   
+            
+            goalDescription(for: step.step.goal)
+            
+            if let alert = step.step.alert {
+                alertDescription(for: alert)
+            }
+            
+            // Show exercise-specific information if available
+            if let exercise = exercise, !isRest {
+                VStack(alignment: .leading, spacing: 4) {
+                    // Movement information
+                    HStack {
+                        Image(systemName: "figure.walk.motion")
+                            .font(.caption2)
+                            .foregroundStyle(.blue)
+                        Text("Movement: \(exercise.movement.rawValue)")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    
+                    // Target muscles
+                    if !exercise.targetMuscles.isEmpty {
+                        HStack {
+                            Image(systemName: "figure.arms.open")
+                                .font(.caption2)
+                                .foregroundStyle(.red)
+                            Text("Targets: \(exercise.targetMuscles.map { $0.rawValue }.joined(separator: ", "))")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .padding(.top, 2)
+            }
+        }
+        .padding(.leading, 16)
+        .padding(.vertical, 6)
+        .background(isRest ? Color.yellow.opacity(0.05) : Color.green.opacity(0.05))
+        .cornerRadius(8)
     }
     
     // MARK: - Helper Functions
+    
+    private func getAllTargetMetrics() -> Set<FitnessMetric> {
+        var allMetrics: Set<FitnessMetric> = []
+        
+        // Add metrics from warmup
+        if let warmup = trainingSession.warmup {
+            for workout in warmup.workouts {
+                allMetrics.formUnion(workout.targetMetrics)
+            }
+        }
+        
+        // Add metrics from workout sequences
+        for sequence in trainingSession.workoutSequences {
+            for workout in sequence.workouts {
+                allMetrics.formUnion(workout.targetMetrics)
+            }
+        }
+        
+        // Add metrics from cooldown
+        if let cooldown = trainingSession.cooldown {
+            for workout in cooldown.workouts {
+                allMetrics.formUnion(workout.targetMetrics)
+            }
+        }
+        
+        return allMetrics
+    }
+    
+    private func sortFitnessMetrics(_ lhs: FitnessMetric, _ rhs: FitnessMetric) -> Bool {
+        // Define a consistent order for fitness metrics
+        let order: [FitnessMetric] = [
+            .strength,
+            .power,
+            .speed,
+            .endurance,
+            .aerobicEndurance,
+            .anaerobicEndurance,
+            .muscularEndurance,
+            .stability,
+            .mobility,
+            .agility
+        ]
+        
+        let lhsIndex = order.firstIndex(of: lhs) ?? order.count
+        let rhsIndex = order.firstIndex(of: rhs) ?? order.count
+        
+        return lhsIndex < rhsIndex
+    }
+    
+    private func iconForFitnessMetric(_ metric: FitnessMetric) -> String {
+        switch metric {
+        case .strength:
+            return "dumbbell.fill"
+        case .stability:
+            return "figure.mind.and.body"
+        case .speed:
+            return "speedometer"
+        case .endurance, .aerobicEndurance, .anaerobicEndurance:
+            return "heart.fill"
+        case .muscularEndurance:
+            return "figure.strengthtraining.traditional"
+        case .agility:
+            return "figure.run"
+        case .power:
+            return "bolt.fill"
+        case .mobility:
+            return "figure.flexibility"
+        }
+    }
+    
+    private func colorForFitnessMetric(_ metric: FitnessMetric) -> Color {
+        switch metric {
+        case .strength:
+            return .red
+        case .stability:
+            return .purple
+        case .speed:
+            return .blue
+        case .endurance, .aerobicEndurance:
+            return .green
+        case .anaerobicEndurance:
+            return .orange
+        case .muscularEndurance:
+            return .brown
+        case .agility:
+            return .cyan
+        case .power:
+            return .yellow
+        case .mobility:
+            return .pink
+        }
+    }
+    
+    private func getExerciseForStep(_ stepIndex: Int, workout: Workout) -> Exercise? {
+        // Since we alternate exercises and rest periods, we need to map step index to exercise
+        let exerciseIndex = stepIndex / 2 // Integer division to get exercise index
+        if stepIndex % 2 == 0 && exerciseIndex < workout.exercises.count {
+            return workout.exercises[exerciseIndex]
+        }
+        return nil
+    }
     
     private func alertDescription(for alert: any WorkoutAlert) -> some View {
         HStack {
             Image(systemName: alertIcon(for: alert))
                 .foregroundStyle(alertColor(for: alert))
+                .font(.caption)
             Text(alertDescription(for: alert))
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -279,13 +445,13 @@ struct TrainingSessionDetailView: View {
         case is HeartRateRangeAlert, is HeartRateZoneAlert:
             return .red
         case is PowerRangeAlert, is PowerThresholdAlert, is PowerZoneAlert:
-            return .yellow
+            return .orange
         case is CadenceRangeAlert, is CadenceThresholdAlert:
             return .green
         case is SpeedRangeAlert, is SpeedThresholdAlert:
             return .blue
         default:
-            return .orange
+            return .gray
         }
     }
     
@@ -326,19 +492,19 @@ struct TrainingSessionDetailView: View {
         switch goal {
         case .time(let duration, let unit):
             return Text(timeString(from: duration))
-                .font(.subheadline)
+                .font(.caption)
                 .foregroundStyle(.secondary)
         case .distance(let distance, let unit):
             return Text(String(format: "%.1f %@", distance, unit.symbol))
-                .font(.subheadline)
+                .font(.caption)
                 .foregroundStyle(.secondary)
         case .open:
             return Text("No goal")
-                .font(.subheadline)
+                .font(.caption)
                 .foregroundStyle(.secondary)
         @unknown default:
             return Text("Unknown goal")
-                .font(.subheadline)
+                .font(.caption)
                 .foregroundStyle(.secondary)
         }
     }
