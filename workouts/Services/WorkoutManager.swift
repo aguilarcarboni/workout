@@ -692,6 +692,10 @@ class WorkoutManager: ObservableObject {
         }
     }
     
+    func addTrainingSession(_ session: TrainingSession) {
+        trainingSessions.append(session)
+    }
+    
     private func createPredefinedTrainingSessions() async -> [TrainingSession] {
         return [
             createUpperBodyStrengthTrainingSession(),

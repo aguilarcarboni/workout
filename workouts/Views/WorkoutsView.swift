@@ -4,6 +4,7 @@ import WorkoutKit
 struct WorkoutsView: View {
 
     @State private var selectedTrainingSession: TrainingSession?
+    @State private var showingCreateForm = false
     @State var workoutManager: WorkoutManager = .shared
     
     var body: some View {
@@ -28,13 +29,16 @@ struct WorkoutsView: View {
                     .sheet(item: $selectedTrainingSession) { session in
                         TrainingSessionDetailView(trainingSession: session)
                     }
+                    .sheet(isPresented: $showingCreateForm) {
+                        CreateTrainingSessionView(workoutManager: workoutManager)
+                    }
                 }
             }
             .navigationTitle("Training Sessions")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
-                        print("Add Workout")
+                        showingCreateForm = true
                     } label: {
                         Image(systemName: "plus")
                     }
