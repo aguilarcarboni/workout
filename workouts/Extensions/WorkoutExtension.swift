@@ -147,6 +147,19 @@ extension HKWorkoutSessionLocationType {
             return "Unknown"
         }
     }
+    
+    var icon: String {
+        switch self {
+        case .indoor:
+            return "house.fill"
+        case .outdoor:
+            return "tree.fill"
+        case .unknown:
+            return "questionmark.circle"
+        @unknown default:
+            return "questionmark.circle"
+        }
+    }
 }
 
 extension HKWorkout: @retroactive Identifiable {

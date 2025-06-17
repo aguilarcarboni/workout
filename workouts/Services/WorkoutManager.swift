@@ -151,6 +151,63 @@ enum Movement: String, CaseIterable {
             return [.fullBody]
         }
     }
+    
+    /**
+     * Returns the primary fitness metrics this movement develops
+     */
+    var targetMetrics: [FitnessMetric] {
+        switch self {
+        // Upper body strength movements
+        case .pullUps, .chinUps, .chestDips, .benchPress:
+            return [.strength, .power]
+        case .latPulldowns, .cablePullover, .chestFlys:
+            return [.strength, .muscularEndurance]
+        case .tricepDips, .tricepPulldown, .overheadPull:
+            return [.strength, .muscularEndurance]
+        case .bicepCurls, .hammerCurls, .preacherCurls:
+            return [.strength, .muscularEndurance]
+        case .lateralRaises, .overheadPress, .facePulls:
+            return [.strength, .stability]
+            
+        // Lower body movements
+        case .barbellBackSquat, .barbellDeadlifts:
+            return [.strength, .power, .stability]
+        case .calfRaises:
+            return [.strength, .stability]
+        case .adductors, .abductors:
+            return [.stability, .mobility]
+            
+        // Core movements
+        case .lSit, .legRaise:
+            return [.strength, .stability, .muscularEndurance]
+            
+        // Cardio movements
+        case .cycling:
+            return [.aerobicEndurance, .muscularEndurance]
+        case .run:
+            return [.aerobicEndurance, .speed]
+        case .sprint:
+            return [.anaerobicEndurance, .speed, .power]
+        case .jumpRope:
+            return [.anaerobicEndurance, .agility, .speed]
+            
+        // Stretching
+        case .benchHipFlexorStretch:
+            return [.mobility]
+            
+        // Complex movements
+        case .bearCrawls:
+            return [.strength, .stability, .muscularEndurance]
+        case .pikePulse:
+            return [.strength, .stability, .mobility]
+        case .hingeToSquat:
+            return [.mobility, .stability, .strength]
+        case .precisionBroadJump:
+            return [.power, .agility, .speed]
+        case .ropeClimbing:
+            return [.strength, .power, .muscularEndurance]
+        }
+    }
 }
 
 /**
@@ -178,36 +235,6 @@ enum WorkoutType: String, CaseIterable {
     
     // Specific stability types
     case functionalStabilityWorkout = "Functional Stability Workout"
-    
-    /**
-     * Returns the primary fitness metrics this workout type develops
-     */
-    var targetMetrics: [FitnessMetric] {
-        switch self {
-        case .warmup, .dynamicWarmup:
-            return [.mobility, .stability]
-        case .functionalWarmup:
-            return [.mobility, .stability, .strength, .power]
-        case .cooldown:
-            return [.mobility]
-        case .strengthWorkout:
-            return [.strength]
-        case .functionalStrengthWorkout:
-            return [.strength, .mobility, .stability, .power]
-        case .enduranceWorkout:
-            return [.endurance]
-        case .muscularEnduranceWorkout:
-            return [.muscularEndurance, .stability, .mobility]
-        case .aerobicEnduranceWorkout:
-            return [.aerobicEndurance, .speed, .strength, .power]
-        case .anaerobicEnduranceWorkout:
-            return [.anaerobicEndurance, .speed, .strength, .power]
-        case .stabilityWorkout:
-            return [.stability]
-        case .functionalStabilityWorkout:
-            return [.stability, .strength, .endurance, .power]
-        }
-    }
 }
 
 // MARK: - Protocols
@@ -247,6 +274,7 @@ class Exercise: TrackableComponent, WorkoutKitConvertible {
     let alert: (any WorkoutAlert)?
     let movement: Movement
     let targetMuscles: [Muscle]
+    let targetMetrics: [FitnessMetric]
     
     var displayName: String {
         return movement.rawValue
@@ -257,6 +285,7 @@ class Exercise: TrackableComponent, WorkoutKitConvertible {
         self.goal = goal
         self.alert = alert
         self.targetMuscles = movement.targetMuscles
+        self.targetMetrics = movement.targetMetrics
     }
     
     /// Converts this Exercise to a WorkoutKit IntervalStep
@@ -316,23 +345,25 @@ class Workout: RepeatableComponent, WorkoutKitConvertible {
     let exercises: [Exercise]
     let restPeriods: [Rest]
     let iterations: Int
-    let displayName: String
     let workoutType: WorkoutType?
-    let targetMetrics: [FitnessMetric]
     
-    init(exercises: [Exercise], restPeriods: [Rest], iterations: Int = 1, displayName: String, workoutType: WorkoutType? = nil) {
+    init(exercises: [Exercise], restPeriods: [Rest], iterations: Int = 1, workoutType: WorkoutType? = nil) {
         self.exercises = exercises
         self.restPeriods = restPeriods
         self.iterations = iterations
-        self.displayName = displayName
         self.workoutType = workoutType
-        self.targetMetrics = workoutType?.targetMetrics ?? []
     }
     
     /// Returns all muscles targeted by this workout
     var targetMuscles: [Muscle] {
         let allMuscles = exercises.flatMap { $0.targetMuscles }
         return Array(Set(allMuscles)) // Remove duplicates
+    }
+    
+    /// Returns all fitness metrics targeted by this workout
+    var targetMetrics: [FitnessMetric] {
+        let allMetrics = exercises.flatMap { $0.targetMetrics }
+        return Array(Set(allMetrics)) // Remove duplicates
     }
     
     /// Converts this Workout to a WorkoutKit IntervalBlock
@@ -359,9 +390,10 @@ class Workout: RepeatableComponent, WorkoutKitConvertible {
     func printableDescription() -> String {
         var output = ""
         
-        output += "\(displayName)"
         if let workoutType = workoutType {
-            output += " (\(workoutType.rawValue))"
+            output += "\(workoutType.rawValue)"
+        } else {
+            output += "Workout"
         }
         output += "\n"
         
@@ -370,7 +402,7 @@ class Workout: RepeatableComponent, WorkoutKitConvertible {
             output += "   Sets: \(iterations)\n"
         }
         
-        // Show target metrics
+        // Show target metrics (derived from exercises)
         if !targetMetrics.isEmpty {
             output += "   Target Metrics: \(targetMetrics.map { $0.rawValue }.joined(separator: ", "))\n"
         }
@@ -535,13 +567,11 @@ class WorkoutSequence: WorkoutKitConvertible, Identifiable, ObservableObject {
     
     let id = UUID()
     let workouts: [Workout]
-    let displayName: String
     let activity: HKWorkoutActivityType
     let location: HKWorkoutSessionLocationType
     
-    init(workouts: [Workout], displayName: String, activity: HKWorkoutActivityType, location: HKWorkoutSessionLocationType) {
+    init(workouts: [Workout], activity: HKWorkoutActivityType, location: HKWorkoutSessionLocationType) {
         self.workouts = workouts
-        self.displayName = displayName
         self.activity = activity
         self.location = location
     }
@@ -552,7 +582,7 @@ class WorkoutSequence: WorkoutKitConvertible, Identifiable, ObservableObject {
         return CustomWorkout(
             activity: activity,
             location: location,
-            displayName: displayName,
+            displayName: activity.displayName,
             blocks: blocks
         )
     }
@@ -645,9 +675,7 @@ class TrainingSession: WorkoutKitConvertible, Identifiable {
         output += "💪 MAIN WORKOUTS\n"
         output += "---------------\n"
         for (sequenceIndex, sequence) in workoutSequences.enumerated() {
-            output += "\nSequence \(sequenceIndex + 1): \(sequence.displayName)\n"
-            output += "Activity: \(sequence.activity.displayName)\n"
-            output += "Location: \(sequence.location.displayName)\n\n"
+            output += "\nSequence \(sequenceIndex + 1): \(sequence.activity.displayName) (\(sequence.location.displayName))\n\n"
             
             for (workoutIndex, workout) in sequence.workouts.enumerated() {
                 output += "  \(workoutIndex + 1). \(workout.printableDescription())\n"
@@ -714,45 +742,35 @@ class WorkoutManager: ObservableObject {
         let upperBodyCalisthenicsWarmup = Workout(
             exercises: [pullUps, dips],
             restPeriods: [shortRest, shortRest],
-            iterations: 2,
-            displayName: "Calisthenics Warmup",
-            workoutType: .functionalWarmup
+            iterations: 2
         )
         
         let latPulldown = Exercise(movement: .latPulldowns, goal: .open)
         let backFunctionalStrength = Workout(
             exercises: [latPulldown],
             restPeriods: [openRest],
-            iterations: 3,
-            displayName: "Back Functional Strength",
-            workoutType: .functionalStrengthWorkout
+            iterations: 3
         )
         
         let benchPress = Exercise(movement: .benchPress, goal: .open)
         let chestFunctionalStrength = Workout(
             exercises: [benchPress],
             restPeriods: [openRest],
-            iterations: 3,
-            displayName: "Chest Functional Strength",
-            workoutType: .functionalStrengthWorkout
+            iterations: 3
         )
         
         let cablePullover = Exercise(movement: .cablePullover, goal: .open)
         let backMuscularEndurance = Workout(
             exercises: [cablePullover],
             restPeriods: [openRest],
-            iterations: 3,
-            displayName: "Back Muscular Endurance",
-            workoutType: .muscularEnduranceWorkout
+            iterations: 3
         )
 
         let chestFlys = Exercise(movement: .chestFlys, goal: .open)
         let chestMuscularEndurance = Workout(
             exercises: [chestFlys],
             restPeriods: [openRest],
-            iterations: 3,
-            displayName: "Chest Muscular Endurance",
-            workoutType: .muscularEnduranceWorkout
+            iterations: 3
         )
         
         let upperBodyStrengthSequence = WorkoutSequence(
@@ -763,7 +781,6 @@ class WorkoutManager: ObservableObject {
                 chestMuscularEndurance,
                 backMuscularEndurance
             ],
-            displayName: "Functional Strength",
             activity: .traditionalStrengthTraining,
             location: .indoor
         )
@@ -782,9 +799,7 @@ class WorkoutManager: ObservableObject {
         let cycling = Exercise(movement: .cycling, goal: .time(300, .seconds), alert: .heartRate(zone: 2))
         let cardioWarmupWorkout = Workout(
             exercises: [cycling],
-            restPeriods: [],
-            displayName: "Cardio Warmup",
-            workoutType: .functionalWarmup
+            restPeriods: []
         )
         
         let adductors = Exercise(movement: .adductors, goal: .open)
@@ -792,36 +807,28 @@ class WorkoutManager: ObservableObject {
         let hipWarmupWorkout = Workout(
             exercises: [adductors, abductors],
             restPeriods: [openRest, openRest],
-            iterations: 2,
-            displayName: "Hip Warmup",
-            workoutType: .functionalWarmup
+            iterations: 2
         )
         
         let backSquats = Exercise(movement: .barbellBackSquat, goal: .open)
         let frontLowerBodyWorkout = Workout(
             exercises: [backSquats],
             restPeriods: [openRest],
-            iterations: 3,
-            displayName: "Front Lower Body Strength",
-            workoutType: .functionalStrengthWorkout
+            iterations: 3
         )
         
         let deadlifts = Exercise(movement: .barbellDeadlifts, goal: .open)
         let backLowerBodyWorkout = Workout(
             exercises: [deadlifts],
             restPeriods: [openRest],
-            iterations: 3,
-            displayName: "Back Lower Body Strength",
-            workoutType: .functionalStrengthWorkout
+            iterations: 3
         )
         
         let calfRaises = Exercise(movement: .calfRaises, goal: .open)
         let stabilityWorkout = Workout(
             exercises: [calfRaises],
             restPeriods: [openRest],
-            iterations: 3,
-            displayName: "Functional Stability",
-            workoutType: .functionalStabilityWorkout
+            iterations: 3
         )
         
         let lSitHold = Exercise(movement: .lSit, goal: .time(30, .seconds))
@@ -829,35 +836,30 @@ class WorkoutManager: ObservableObject {
         let coreWorkout = Workout(
             exercises: [lSitHold, hangingLegRaises],
             restPeriods: [timedRest, timedRest],
-            iterations: 2,
-            displayName: "Core Stability",
-            workoutType: .functionalStabilityWorkout
+            iterations: 2
         )
         
         let cardioSequence = WorkoutSequence(
             workouts: [cardioWarmupWorkout],
-            displayName: "Cardio Warmup",
             activity: .cycling,
             location: .indoor
         )
         
         let strengthSequence = WorkoutSequence(
             workouts: [hipWarmupWorkout, frontLowerBodyWorkout, backLowerBodyWorkout, stabilityWorkout],
-            displayName: "Functional Strength",
             activity: .traditionalStrengthTraining,
             location: .indoor
         )
         
         let coreSequence = WorkoutSequence(
             workouts: [coreWorkout],
-            displayName: "Functional Stability",
             activity: .coreTraining,
             location: .indoor
         )
         
         return TrainingSession(
             workoutSequences: [cardioSequence, strengthSequence, coreSequence],
-            displayName: "Lower Body Strength"
+            displayName: "Lower Body"
         )
     }
 
@@ -868,52 +870,43 @@ class WorkoutManager: ObservableObject {
         let cycling = Exercise(movement: .cycling, goal: .time(300, .seconds), alert: .heartRate(zone: 2))
         let cardioWarmupWorkout = Workout(
             exercises: [cycling],
-            restPeriods: [],
-            displayName: "Cardio Warmup",
-            workoutType: .functionalWarmup
+            restPeriods: []
         )
         
         let continuousRunning = Exercise(movement: .run, goal: .time(1800, .seconds), alert: .speed(10, unit: .kilometersPerHour)) // 10 km/h = 2.78 m/s
         let runningWorkout = Workout(
             exercises: [continuousRunning],
-            restPeriods: [],
-            displayName: "Paced Run",
-            workoutType: .aerobicEnduranceWorkout
+            restPeriods: []
         )
         
         let jumpRope = Exercise(movement: .jumpRope, goal: .time(90, .seconds), alert: .heartRate(zone: 4))
         let plyometricsWorkout = Workout(
             exercises: [jumpRope],
             restPeriods: [timedRest],
-            iterations: 3,
-            displayName: "Plyometrics",
-            workoutType: .anaerobicEnduranceWorkout
+            iterations: 3
         )
         
         let cardioSequence = WorkoutSequence(
             workouts: [cardioWarmupWorkout],
-            displayName: "Cardio Warmup",
             activity: .cycling,
             location: .indoor
         )
         
         let runningSequence = WorkoutSequence(
             workouts: [runningWorkout],
-            displayName: "Paced Run",
             activity: .running,
             location: .indoor
         )
         
         let plyometricsSequence = WorkoutSequence(
             workouts: [plyometricsWorkout],
-            displayName: "Plyometrics",
             activity: .highIntensityIntervalTraining,
             location: .indoor
         )
         
         return TrainingSession(
             workoutSequences: [cardioSequence, runningSequence, plyometricsSequence],
-            displayName: "Lower Body Endurance"
+            displayName: "Cardio"
         )
     }
 }

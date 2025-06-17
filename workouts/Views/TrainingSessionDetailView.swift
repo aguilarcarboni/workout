@@ -90,37 +90,11 @@ struct TrainingSessionDetailView: View {
                 Text(trainingSession.displayName)
                     .font(.largeTitle)
                     .fontWeight(.bold)
-                
-                // Fitness metrics overview
-                fitnessMetricsOverview
-            }
-        }
-    }
-    
-    private var fitnessMetricsOverview: some View {
-        let allMetrics = getAllTargetMetrics().sorted { sortFitnessMetrics($0, $1) }
-        
-        return VStack(alignment: .center, spacing: 8) {
-            Text("TARGET FITNESS METRICS")
+
+            Text("TRAINING SESSION")
                 .font(.caption)
                 .fontWeight(.semibold)
                 .foregroundStyle(.secondary)
-            
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 8) {
-                ForEach(allMetrics, id: \.self) { metric in
-                    HStack {
-                        Image(systemName: iconForFitnessMetric(metric))
-                            .font(.caption)
-                            .foregroundStyle(colorForFitnessMetric(metric))
-                        Text(metric.rawValue)
-                            .font(.caption)
-                            .fontWeight(.medium)
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(colorForFitnessMetric(metric).opacity(0.1))
-                    .cornerRadius(12)
-                }
             }
         }
     }
@@ -150,9 +124,31 @@ struct TrainingSessionDetailView: View {
     }
     
     private func workoutSequenceSection(_ sequence: WorkoutSequence, index: Int) -> some View {
-        Section(sequence.displayName) {
+        Section {
             ForEach(Array(sequence.workouts.enumerated()), id: \.offset) { workoutIndex, workout in
                 workoutRow(for: workout, icon: sequence.activity.icon, workoutId: "sequence-\(index)-\(workoutIndex)")
+            }
+        } header: {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 12) {
+                    HStack(spacing: 4) {
+                        Image(systemName: sequence.activity.icon)
+                            .font(.headline)
+                            .foregroundStyle(Color("AccentColor"))
+                        Text(sequence.activity.displayName)
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                    }
+                    
+                    HStack(spacing: 4) {
+                        Image(systemName: sequence.location.icon)
+                            .font(.caption)
+                            .foregroundStyle(Color("AccentColor"))
+                        Text(sequence.location.displayName)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
         }
     }
@@ -178,12 +174,8 @@ struct TrainingSessionDetailView: View {
                 }
             }) {
                 HStack {
-                    Image(systemName: icon)
-                        .foregroundStyle(Color("AccentColor"))
                     
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(workout.displayName)
-                            .font(.headline)
                         
                         HStack {
                             Image(systemName: "repeat")
@@ -193,15 +185,6 @@ struct TrainingSessionDetailView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             
-                            if let workoutType = workout.workoutType {
-                                Spacer()
-                                Text(workoutType.rawValue)
-                                    .font(.caption2)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(.ultraThinMaterial)
-                                    .cornerRadius(8)
-                            }
                         }
                         
                         // Show target muscles
@@ -257,37 +240,22 @@ struct TrainingSessionDetailView: View {
                 }
             }
         }
-        .padding(.leading, 16)
     }
     
     private func intervalStepView(_ step: IntervalStep, exercise: Exercise?) -> some View {
         let isRest = step.purpose == .recovery
         
-        return VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(isRest ? "Rest" : "Exercise")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                Spacer()
-            }   
-            
-            goalDescription(for: step.step.goal)
-            
-            if let alert = step.step.alert {
-                alertDescription(for: alert)
-            }
-            
+        return VStack(alignment: .leading, spacing: 8) {
+
             // Show exercise-specific information if available
             if let exercise = exercise, !isRest {
                 VStack(alignment: .leading, spacing: 4) {
                     // Movement information
                     HStack {
-                        Image(systemName: "figure.walk.motion")
+                        Text("\(exercise.movement.rawValue)")
                             .font(.caption2)
-                            .foregroundStyle(.blue)
-                        Text("Movement: \(exercise.movement.rawValue)")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.primary)
+                            .fontWeight(.semibold)
                     }
                     
                     // Target muscles
@@ -295,19 +263,56 @@ struct TrainingSessionDetailView: View {
                         HStack {
                             Image(systemName: "figure.arms.open")
                                 .font(.caption2)
-                                .foregroundStyle(.red)
-                            Text("Targets: \(exercise.targetMuscles.map { $0.rawValue }.joined(separator: ", "))")
+                                .foregroundStyle(Color("AccentColor"))
+                            Text("\(exercise.targetMuscles.sorted { $0.rawValue < $1.rawValue }.map { $0.rawValue }.joined(separator: ", "))")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    
+                    // Target fitness metrics
+                    if !exercise.targetMetrics.isEmpty {
+                        HStack {
+                            Image(systemName: "target")
+                                .font(.caption2)
+                                .foregroundStyle(Color("AccentColor"))
+                            Text("\(exercise.targetMetrics.sorted { sortFitnessMetrics($0, $1) }.map { $0.rawValue }.joined(separator: ", "))")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
                     }
                 }
                 .padding(.top, 2)
+            } else {
+                VStack(alignment: .leading, spacing: 4) {
+                    // Movement information
+                    HStack {
+                        Text("Rest")
+                            .font(.caption2)
+                            .foregroundStyle(.primary)
+                            .fontWeight(.semibold)
+                    }
+                    
+                }
+                .padding(.top, 2)
             }
+
+            HStack {
+                Image(systemName: "target")
+                    .font(.caption2)
+                    .foregroundStyle(Color("AccentColor"))
+                    goalDescription(for: step.step.goal)
+            }
+
+            if let alert = step.step.alert {
+                alertDescription(for: alert)
+            }
+
         }
-        .padding(.leading, 16)
-        .padding(.vertical, 6)
-        .background(isRest ? Color.yellow.opacity(0.05) : Color.green.opacity(0.05))
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(isRest ? Color.black.opacity(0.05) : Color.black.opacity(0.1))
         .cornerRadius(8)
     }
     
@@ -379,29 +384,6 @@ struct TrainingSessionDetailView: View {
             return "bolt.fill"
         case .mobility:
             return "figure.flexibility"
-        }
-    }
-    
-    private func colorForFitnessMetric(_ metric: FitnessMetric) -> Color {
-        switch metric {
-        case .strength:
-            return .red
-        case .stability:
-            return .purple
-        case .speed:
-            return .blue
-        case .endurance, .aerobicEndurance:
-            return .green
-        case .anaerobicEndurance:
-            return .orange
-        case .muscularEndurance:
-            return .brown
-        case .agility:
-            return .cyan
-        case .power:
-            return .yellow
-        case .mobility:
-            return .pink
         }
     }
     

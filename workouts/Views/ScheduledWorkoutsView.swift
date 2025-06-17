@@ -30,7 +30,7 @@ struct ScheduledWorkoutsView: View {
                                     Button {
                                         markComplete(scheduledWorkout)
                                     } label: {
-                                        Label("Mark as Incomplete", systemImage: "xmark")
+                                        Label("Complete", systemImage: "checkmark")
                                     }
                                     .tint(.blue)
                                 }
