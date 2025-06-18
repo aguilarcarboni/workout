@@ -91,6 +91,39 @@ enum Movement: String, CaseIterable {
     
     // Stretching movements
     case benchHipFlexorStretch = "Bench Hip Flexor Stretch"
+    case hamstringStretch = "Hamstring Stretch"
+    case quadricepsStretch = "Quadriceps Stretch"
+    case calfStretch = "Calf Stretch"
+    case shoulderStretch = "Shoulder Stretch"
+    case neckStretch = "Neck Stretch"
+    case spinalTwist = "Spinal Twist"
+    case childsPose = "Child's Pose"
+    
+    // Yoga movements
+    case downwardDog = "Downward Dog"
+    case warriorOne = "Warrior I"
+    case warriorTwo = "Warrior II"
+    case trianglePose = "Triangle Pose"
+    case treePose = "Tree Pose"
+    case catCowPose = "Cat Cow Pose"
+    case cobralPose = "Cobra Pose"
+    case planktoPose = "Plank Pose"
+    case mountainPose = "Mountain Pose"
+    case sunSalutation = "Sun Salutation"
+    
+    // Pilates movements  
+    case pilatesHundred = "Pilates Hundred"
+    case pilatesRollUp = "Pilates Roll Up"
+    case pilatesSingleLegCircle = "Pilates Single Leg Circle"
+    case pilatesTeaser = "Pilates Teaser"
+    case pilatesPlank = "Pilates Plank"
+    case pilatesBridge = "Pilates Bridge"
+    
+    // Mindfulness movements
+    case meditation = "Meditation"
+    case breathingExercise = "Breathing Exercise"
+    case bodyScanning = "Body Scanning"
+    case progressiveMuscleRelaxation = "Progressive Muscle Relaxation"
     
     // Complex movements
     case bearCrawls = "Bear Crawls"
@@ -139,6 +172,56 @@ enum Movement: String, CaseIterable {
         // Stretching
         case .benchHipFlexorStretch:
             return [.psoas, .iliacus]
+        case .hamstringStretch:
+            return [.hamstrings]
+        case .quadricepsStretch:
+            return [.quadriceps]
+        case .calfStretch:
+            return [.calves]
+        case .shoulderStretch:
+            return [.shoulders]
+        case .neckStretch:
+            return [.fullBody] // neck not specific muscle
+        case .spinalTwist, .childsPose:
+            return [.back, .core]
+            
+        // Yoga movements
+        case .downwardDog:
+            return [.shoulders, .hamstrings, .calves]
+        case .warriorOne, .warriorTwo:
+            return [.quadriceps, .glutes, .core]
+        case .trianglePose:
+            return [.hamstrings, .core, .shoulders]
+        case .treePose:
+            return [.core, .glutes]
+        case .catCowPose:
+            return [.back, .core]
+        case .cobralPose:
+            return [.back, .chest]
+        case .planktoPose:
+            return [.core, .shoulders, .chest]
+        case .mountainPose:
+            return [.core, .glutes]
+        case .sunSalutation:
+            return [.fullBody]
+            
+        // Pilates movements
+        case .pilatesHundred:
+            return [.core, .obliques]
+        case .pilatesRollUp:
+            return [.core, .psoas]
+        case .pilatesSingleLegCircle:
+            return [.core, .psoas]
+        case .pilatesTeaser:
+            return [.core, .psoas]
+        case .pilatesPlank:
+            return [.core, .shoulders]
+        case .pilatesBridge:
+            return [.glutes, .hamstrings, .core]
+            
+        // Mindfulness movements
+        case .meditation, .breathingExercise, .bodyScanning, .progressiveMuscleRelaxation:
+            return [.fullBody] // mental focus, full body awareness
             
         // Complex movements
         case .bearCrawls, .pikePulse:
@@ -194,6 +277,48 @@ enum Movement: String, CaseIterable {
         // Stretching
         case .benchHipFlexorStretch:
             return [.mobility]
+        case .hamstringStretch, .quadricepsStretch, .calfStretch, .shoulderStretch, .neckStretch:
+            return [.mobility]
+        case .spinalTwist, .childsPose:
+            return [.mobility, .stability]
+            
+        // Yoga movements
+        case .downwardDog:
+            return [.mobility, .stability, .strength]
+        case .warriorOne, .warriorTwo:
+            return [.stability, .strength, .mobility]
+        case .trianglePose:
+            return [.mobility, .stability]
+        case .treePose:
+            return [.stability]
+        case .catCowPose:
+            return [.mobility, .stability]
+        case .cobralPose:
+            return [.mobility, .strength]
+        case .planktoPose:
+            return [.strength, .stability, .muscularEndurance]
+        case .mountainPose:
+            return [.stability]
+        case .sunSalutation:
+            return [.mobility, .stability, .strength, .endurance]
+            
+        // Pilates movements
+        case .pilatesHundred:
+            return [.muscularEndurance, .stability]
+        case .pilatesRollUp:
+            return [.strength, .stability, .mobility]
+        case .pilatesSingleLegCircle:
+            return [.stability, .mobility]
+        case .pilatesTeaser:
+            return [.strength, .stability]
+        case .pilatesPlank:
+            return [.strength, .stability, .muscularEndurance]
+        case .pilatesBridge:
+            return [.strength, .stability]
+            
+        // Mindfulness movements
+        case .meditation, .breathingExercise, .bodyScanning, .progressiveMuscleRelaxation:
+            return [.stability] // mental stability and focus
             
         // Complex movements
         case .bearCrawls:
@@ -555,139 +680,148 @@ class Cooldown: WorkoutKitConvertible {
 }
 
 /**
- * WorkoutSequence: A key part of a Training Session - a set of workouts with similar properties
+ * ActivityGroup: A group of workouts that share the same activity type and location
  * 
  * Maps to WorkoutKit: CustomWorkout
- * - Groups workouts that can be tracked together under one activity type
+ * - Groups workouts under a single activity type
  * - Defines the activity type and location for WorkoutKit tracking
- * - Represents a cohesive training sequence that can be sent to Apple Watch
  */
-class WorkoutSequence: WorkoutKitConvertible, Identifiable, ObservableObject {
-    typealias WorkoutKitType = CustomWorkout
-    
-    let id = UUID()
-    let workouts: [Workout]
+struct ActivityGroup {
     let activity: HKWorkoutActivityType
     let location: HKWorkoutSessionLocationType
+    let workouts: [Workout]
+    let displayName: String?
     
-    init(workouts: [Workout], activity: HKWorkoutActivityType, location: HKWorkoutSessionLocationType) {
-        self.workouts = workouts
+    init(activity: HKWorkoutActivityType, location: HKWorkoutSessionLocationType, workouts: [Workout], displayName: String? = nil) {
         self.activity = activity
         self.location = location
+        self.workouts = workouts
+        self.displayName = displayName
     }
     
-    /// Converts this WorkoutSequence to a WorkoutKit CustomWorkout
-    func toWorkoutKitType() -> CustomWorkout {
+    /// Returns all muscles targeted by this activity group
+    var targetMuscles: [Muscle] {
+        let allMuscles = workouts.flatMap { $0.targetMuscles }
+        return Array(Set(allMuscles)) // Remove duplicates
+    }
+    
+    /// Returns all fitness metrics targeted by this activity group
+    var targetMetrics: [FitnessMetric] {
+        let allMetrics = workouts.flatMap { $0.targetMetrics }
+        return Array(Set(allMetrics)) // Remove duplicates
+    }
+    
+    /// Converts this ActivityGroup to a WorkoutKit CustomWorkout
+    func toCustomWorkout(sessionDisplayName: String) -> CustomWorkout {
         let blocks = workouts.map { $0.toWorkoutKitType() }
+        let groupDisplayName = displayName ?? activity.displayName
+        let fullDisplayName = "\(sessionDisplayName) - \(groupDisplayName)"
+        
         return CustomWorkout(
             activity: activity,
             location: location,
-            displayName: activity.displayName,
+            displayName: fullDisplayName,
             blocks: blocks
         )
-    }
-    
-    /// Legacy method name for backward compatibility
-    func toCustomWorkout() -> CustomWorkout {
-        return toWorkoutKitType()
     }
 }
 
 /**
- * TrainingSession: A complete training session for a single day
+ * ActivitySession: A complete workout session - a collection of activity groups
  * 
- * Maps to WorkoutKit: Collection of CustomWorkouts
- * - Represents a complete day of training
- * - Can include warmup, multiple workout sequences, and cooldown
- * - Each component becomes a separate CustomWorkout for Apple Watch tracking
+ * Maps to WorkoutKit: Multiple CustomWorkouts (one per activity group)
+ * - Groups activity groups that can be tracked together as a cohesive session
+ * - Each activity group becomes a separate CustomWorkout when scheduled
+ * - Represents a complete training session that can be sent to Apple Watch
  */
-class TrainingSession: WorkoutKitConvertible, Identifiable {
+class ActivitySession: WorkoutKitConvertible, Identifiable, ObservableObject {
     typealias WorkoutKitType = [CustomWorkout]
     
     let id = UUID()
-    
-    let warmup: Warmup?
-    let workoutSequences: [WorkoutSequence]
-    let cooldown: Cooldown?
+    let activityGroups: [ActivityGroup]
     let displayName: String
     
-    init(warmup: Warmup? = nil, workoutSequences: [WorkoutSequence], cooldown: Cooldown? = nil, displayName: String) {
-        self.warmup = warmup
-        self.workoutSequences = workoutSequences
-        self.cooldown = cooldown
+    init(activityGroups: [ActivityGroup], displayName: String) {
+        self.activityGroups = activityGroups
         self.displayName = displayName
     }
     
-    /// Converts this TrainingSession to WorkoutKit CustomWorkouts
+    /// Convenience initializer for single activity type sessions (backward compatibility)
+    convenience init(workouts: [Workout], activity: HKWorkoutActivityType, location: HKWorkoutSessionLocationType, displayName: String? = nil) {
+        let group = ActivityGroup(activity: activity, location: location, workouts: workouts)
+        let sessionDisplayName = displayName ?? activity.displayName
+        self.init(activityGroups: [group], displayName: sessionDisplayName)
+    }
+    
+    /// Returns all workouts across all activity groups
+    var workouts: [Workout] {
+        return activityGroups.flatMap { $0.workouts }
+    }
+    
+    /// Returns the primary activity type for backward compatibility (first group's activity)
+    var activity: HKWorkoutActivityType {
+        return activityGroups.first?.activity ?? .other
+    }
+    
+    /// Returns the primary location for backward compatibility (first group's location)
+    var location: HKWorkoutSessionLocationType {
+        return activityGroups.first?.location ?? .unknown
+    }
+    
+    /// Converts this ActivitySession to WorkoutKit CustomWorkouts (one per activity group)
     func toWorkoutKitType() -> [CustomWorkout] {
-        var customWorkouts: [CustomWorkout] = []
-        
-        // Add warmup as a custom workout if present
-        if let warmup = warmup, !warmup.workouts.isEmpty {
-            let warmupWorkout = CustomWorkout(
-                activity: .other,
-                location: .indoor,
-                displayName: warmup.displayName,
-                blocks: warmup.toWorkoutKitType()
-            )
-            customWorkouts.append(warmupWorkout)
-        }
-        
-        // Add all workout sequences
-        customWorkouts.append(contentsOf: workoutSequences.map { $0.toWorkoutKitType() })
-        
-        // Add cooldown as a custom workout if present
-        if let cooldown = cooldown, !cooldown.workouts.isEmpty {
-            let cooldownWorkout = CustomWorkout(
-                activity: .other,
-                location: .indoor,
-                displayName: cooldown.displayName,
-                blocks: cooldown.toWorkoutKitType()
-            )
-            customWorkouts.append(cooldownWorkout)
-        }
-        
-        return customWorkouts
+        return activityGroups.map { $0.toCustomWorkout(sessionDisplayName: displayName) }
     }
     
-    /// Legacy method name for backward compatibility
-    func toCustomWorkouts() -> [CustomWorkout] {
-        return toWorkoutKitType()
+    /// Legacy method name for backward compatibility - returns first CustomWorkout
+    func toCustomWorkout() -> CustomWorkout {
+        let customWorkouts = toWorkoutKitType()
+        return customWorkouts.first ?? CustomWorkout(
+            activity: .other,
+            location: .unknown,
+            displayName: displayName,
+            blocks: []
+        )
     }
     
-    /// Returns a detailed plain text description of the entire training session
+    /// Returns all muscles targeted by this activity session
+    var targetMuscles: [Muscle] {
+        let allMuscles = activityGroups.flatMap { $0.targetMuscles }
+        return Array(Set(allMuscles)) // Remove duplicates
+    }
+    
+    /// Returns all fitness metrics targeted by this activity session
+    var targetMetrics: [FitnessMetric] {
+        let allMetrics = activityGroups.flatMap { $0.targetMetrics }
+        return Array(Set(allMetrics)) // Remove duplicates
+    }
+    
+    /// Returns a detailed plain text description of the activity session
     func printableDescription() -> String {
         var output = ""
         
         output += "=== \(displayName.uppercased()) ===\n\n"
         
-        // Warmup Section
-        if let warmup = warmup, !warmup.workouts.isEmpty {
-            output += "🔥 WARMUP\n"
-            output += "--------\n"
-            for (index, workout) in warmup.workouts.enumerated() {
-                output += "\(index + 1). \(workout.printableDescription())\n"
-            }
-            output += "\n"
+        // Show target metrics
+        if !targetMetrics.isEmpty {
+            output += "Target Metrics: \(targetMetrics.map { $0.rawValue }.joined(separator: ", "))\n"
         }
         
-        // Main Workout Sequences
-        output += "💪 MAIN WORKOUTS\n"
-        output += "---------------\n"
-        for (sequenceIndex, sequence) in workoutSequences.enumerated() {
-            output += "\nSequence \(sequenceIndex + 1): \(sequence.activity.displayName) (\(sequence.location.displayName))\n\n"
+        // Show target muscles
+        if !targetMuscles.isEmpty {
+            output += "Target Muscles: \(targetMuscles.map { $0.rawValue }.joined(separator: ", "))\n"
+        }
+        
+        output += "\n💪 ACTIVITY GROUPS\n"
+        output += "------------------\n"
+        
+        for (groupIndex, group) in activityGroups.enumerated() {
+            output += "\n🏃 \(group.displayName ?? group.activity.displayName) (\(group.location.displayName))\n"
+            output += "Target Metrics: \(group.targetMetrics.map { $0.rawValue }.joined(separator: ", "))\n"
+            output += "Target Muscles: \(group.targetMuscles.map { $0.rawValue }.joined(separator: ", "))\n\n"
             
-            for (workoutIndex, workout) in sequence.workouts.enumerated() {
-                output += "  \(workoutIndex + 1). \(workout.printableDescription())\n"
-            }
-        }
-        
-        // Cooldown Section
-        if let cooldown = cooldown, !cooldown.workouts.isEmpty {
-            output += "\n❄️ COOLDOWN\n"
-            output += "----------\n"
-            for (index, workout) in cooldown.workouts.enumerated() {
-                output += "\(index + 1). \(workout.printableDescription())\n"
+            for (workoutIndex, workout) in group.workouts.enumerated() {
+                output += "\(groupIndex + 1).\(workoutIndex + 1). \(workout.printableDescription())\n"
             }
         }
         
@@ -695,111 +829,331 @@ class TrainingSession: WorkoutKitConvertible, Identifiable {
     }
 }
 
-// MARK: - Workout Manager
-
 /**
- * WorkoutManager: Central manager for all training sessions and workout operations
+ * WorkoutManager: Central manager for all activity sessions and workout operations
  * 
  * Responsibilities:
- * - Store and manage all training sessions
+ * - Store and manage all activity sessions
  * - Create predefined workout templates
- * - Provide access to workout sequences for UI components
+ * - Provide access to activity sessions for UI components
  * - Bridge between our OOP structure and WorkoutKit integration
  */
 class WorkoutManager: ObservableObject {
     
     static let shared = WorkoutManager()
     
-    @Published var trainingSessions: [TrainingSession] = []
+    @Published var activitySessions: [ActivitySession] = []
     
     func createWorkouts() async {
-        let sessions = await createPredefinedTrainingSessions()
+        let sessions = await createPredefinedActivitySessions()
         
         await MainActor.run {
-            self.trainingSessions = sessions
+            self.activitySessions = sessions
         }
     }
     
-    func addTrainingSession(_ session: TrainingSession) {
-        trainingSessions.append(session)
+    func addActivitySession(_ session: ActivitySession) {
+        activitySessions.append(session)
+    }
+}
+
+/**
+ * MindAndBodyManager: Central manager for mind and body activity sessions
+ * 
+ * Responsibilities:
+ * - Store and manage mind and body activity sessions
+ * - Create predefined mind and body workout templates
+ * - Provide access to mind and body sessions for UI components
+ * - Focus on yoga, pilates, stretching, and mindfulness activities
+ */
+class MindAndBodyManager: ObservableObject {
+    
+    static let shared = MindAndBodyManager()
+    
+    @Published var mindAndBodySessions: [ActivitySession] = []
+    
+    func createMindAndBodySessions() async {
+        let sessions = await createPredefinedMindAndBodySessions()
+        print("Created \(sessions.count) mind and body sessions")
+        
+        await MainActor.run {
+            self.mindAndBodySessions = sessions
+            print("Mind and body sessions updated on main actor: \(self.mindAndBodySessions.count)")
+        }
     }
     
-    private func createPredefinedTrainingSessions() async -> [TrainingSession] {
+    func addMindAndBodySession(_ session: ActivitySession) {
+        mindAndBodySessions.append(session)
+    }
+    
+    private func createPredefinedMindAndBodySessions() async -> [ActivitySession] {
         return [
-            createUpperBodyStrengthTrainingSession(),
-            createLowerBodyStrengthTrainingSession(),
-            createLowerBodyEnduranceTrainingSession(),
+            createYogaFlowSession(),
+            createStretchingSession(),
+            createPilatesSession(),
+            createMindfulnessSession(),
+            createMorningRoutineSession()
         ]
     }
     
-    private func createUpperBodyStrengthTrainingSession() -> TrainingSession {
+    private func createYogaFlowSession() -> ActivitySession {
+        let shortRest = Rest(goal: .time(10, .seconds))
+        let transitionRest = Rest(goal: .time(5, .seconds))
+        
+        // Warm-up flow
+        let mountainPose = Exercise(movement: .mountainPose, goal: .time(30, .seconds))
+        let catCow = Exercise(movement: .catCowPose, goal: .time(60, .seconds))
+        let childsPose = Exercise(movement: .childsPose, goal: .time(30, .seconds))
+        let warmupWorkout = Workout(
+            exercises: [mountainPose, catCow, childsPose],
+            restPeriods: [transitionRest, transitionRest, shortRest],
+            workoutType: .warmup
+        )
+        
+        // Main flow
+        let sunSalutation = Exercise(movement: .sunSalutation, goal: .time(300, .seconds))
+        let warrior1 = Exercise(movement: .warriorOne, goal: .time(45, .seconds))
+        let warrior2 = Exercise(movement: .warriorTwo, goal: .time(45, .seconds))
+        let triangle = Exercise(movement: .trianglePose, goal: .time(45, .seconds))
+        let mainFlowWorkout = Workout(
+            exercises: [sunSalutation, warrior1, warrior2, triangle],
+            restPeriods: [shortRest, transitionRest, transitionRest, shortRest],
+            iterations: 2
+        )
+        
+        // Cool-down
+        let downwardDog = Exercise(movement: .downwardDog, goal: .time(60, .seconds))
+        let cobra = Exercise(movement: .cobralPose, goal: .time(45, .seconds))
+        let finalChildsPose = Exercise(movement: .childsPose, goal: .time(120, .seconds))
+        let cooldownWorkout = Workout(
+            exercises: [downwardDog, cobra, finalChildsPose],
+            restPeriods: [transitionRest, transitionRest, Rest()],
+            workoutType: .cooldown
+        )
+        
+        return ActivitySession(
+            activityGroups: [
+                ActivityGroup(activity: .yoga, location: .indoor, workouts: [warmupWorkout, mainFlowWorkout, cooldownWorkout], displayName: "Yoga Flow")
+            ],
+            displayName: "Yoga Flow"
+        )
+    }
+    
+    private func createStretchingSession() -> ActivitySession {
+        let stretchRest = Rest(goal: .time(15, .seconds))
+        
+        let hamstring = Exercise(movement: .hamstringStretch, goal: .time(60, .seconds))
+        let quadriceps = Exercise(movement: .quadricepsStretch, goal: .time(60, .seconds))
+        let calf = Exercise(movement: .calfStretch, goal: .time(45, .seconds))
+        let lowerBodyWorkout = Workout(
+            exercises: [hamstring, quadriceps, calf],
+            restPeriods: [stretchRest, stretchRest, stretchRest],
+            iterations: 2
+        )
+        
+        let shoulder = Exercise(movement: .shoulderStretch, goal: .time(45, .seconds))
+        let neck = Exercise(movement: .neckStretch, goal: .time(30, .seconds))
+        let spinalTwist = Exercise(movement: .spinalTwist, goal: .time(60, .seconds))
+        let upperBodyWorkout = Workout(
+            exercises: [shoulder, neck, spinalTwist],
+            restPeriods: [stretchRest, stretchRest, stretchRest],
+            iterations: 2
+        )
+        
+        let hipFlexor = Exercise(movement: .benchHipFlexorStretch, goal: .time(60, .seconds))
+        let hingeSquat = Exercise(movement: .hingeToSquat, goal: .time(90, .seconds))
+        let mobilityWorkout = Workout(
+            exercises: [hipFlexor, hingeSquat],
+            restPeriods: [stretchRest, Rest()],
+            iterations: 2
+        )
+        
+        return ActivitySession(
+            activityGroups: [
+                ActivityGroup(activity: .flexibility, location: .indoor, workouts: [lowerBodyWorkout, upperBodyWorkout, mobilityWorkout], displayName: "Full Body Stretch")
+            ],
+            displayName: "Full Body Stretch"
+        )
+    }
+    
+    private func createPilatesSession() -> ActivitySession {
+        let pilatesRest = Rest(goal: .time(20, .seconds))
+        
+        let hundred = Exercise(movement: .pilatesHundred, goal: .time(60, .seconds))
+        let rollUp = Exercise(movement: .pilatesRollUp, goal: .open)
+        let coreWorkout = Workout(
+            exercises: [hundred, rollUp],
+            restPeriods: [pilatesRest, pilatesRest],
+            iterations: 3
+        )
+        
+        let singleLegCircle = Exercise(movement: .pilatesSingleLegCircle, goal: .open)
+        let teaser = Exercise(movement: .pilatesTeaser, goal: .open)
+        let strengthWorkout = Workout(
+            exercises: [singleLegCircle, teaser],
+            restPeriods: [pilatesRest, pilatesRest],
+            iterations: 2
+        )
+        
+        let pilatesPlank = Exercise(movement: .pilatesPlank, goal: .time(45, .seconds))
+        let bridge = Exercise(movement: .pilatesBridge, goal: .time(60, .seconds))
+        let stabilityWorkout = Workout(
+            exercises: [pilatesPlank, bridge],
+            restPeriods: [pilatesRest, Rest()],
+            iterations: 3
+        )
+        
+        return ActivitySession(
+            activityGroups: [
+                ActivityGroup(activity: .pilates, location: .indoor, workouts: [coreWorkout, strengthWorkout, stabilityWorkout], displayName: "Pilates Core")
+            ],
+            displayName: "Pilates Core"
+        )
+    }
+    
+    private func createMindfulnessSession() -> ActivitySession {
+        let mindfulRest = Rest(goal: .time(30, .seconds))
+        
+        let breathing = Exercise(movement: .breathingExercise, goal: .time(300, .seconds))
+        let breathingWorkout = Workout(
+            exercises: [breathing],
+            restPeriods: [mindfulRest]
+        )
+        
+        let meditation = Exercise(movement: .meditation, goal: .time(600, .seconds))
+        let meditationWorkout = Workout(
+            exercises: [meditation],
+            restPeriods: [mindfulRest]
+        )
+        
+        let bodyScanning = Exercise(movement: .bodyScanning, goal: .time(480, .seconds))
+        let bodyScanWorkout = Workout(
+            exercises: [bodyScanning],
+            restPeriods: [Rest()]
+        )
+        
+        return ActivitySession(
+            activityGroups: [
+                ActivityGroup(activity: .mindAndBody, location: .indoor, workouts: [breathingWorkout, meditationWorkout, bodyScanWorkout], displayName: "Mindfulness Practice")
+            ],
+            displayName: "Mindfulness Practice"
+        )
+    }
+    
+    private func createMorningRoutineSession() -> ActivitySession {
+        let transitionRest = Rest(goal: .time(10, .seconds))
+        
+        // Gentle wake-up stretch
+        let catCow = Exercise(movement: .catCowPose, goal: .time(60, .seconds))
+        let childsPose = Exercise(movement: .childsPose, goal: .time(45, .seconds))
+        let spinalTwist = Exercise(movement: .spinalTwist, goal: .time(60, .seconds))
+        let stretchWorkout = Workout(
+            exercises: [catCow, childsPose, spinalTwist],
+            restPeriods: [transitionRest, transitionRest, transitionRest]
+        )
+        
+        // Energizing flow
+        let mountain = Exercise(movement: .mountainPose, goal: .time(30, .seconds))
+        let downwardDog = Exercise(movement: .downwardDog, goal: .time(60, .seconds))
+        let warrior1 = Exercise(movement: .warriorOne, goal: .time(45, .seconds))
+        let tree = Exercise(movement: .treePose, goal: .time(30, .seconds))
+        let energizingWorkout = Workout(
+            exercises: [mountain, downwardDog, warrior1, tree],
+            restPeriods: [transitionRest, transitionRest, transitionRest, transitionRest]
+        )
+        
+        // Mindful breathing
+        let breathing = Exercise(movement: .breathingExercise, goal: .time(180, .seconds))
+        let breathingWorkout = Workout(
+            exercises: [breathing],
+            restPeriods: [Rest()]
+        )
+        
+        return ActivitySession(
+            activityGroups: [
+                ActivityGroup(activity: .flexibility, location: .indoor, workouts: [stretchWorkout], displayName: "Morning Stretch"),
+                ActivityGroup(activity: .yoga, location: .indoor, workouts: [energizingWorkout], displayName: "Energizing Flow"),
+                ActivityGroup(activity: .mindAndBody, location: .indoor, workouts: [breathingWorkout], displayName: "Mindful Breathing")
+            ],
+            displayName: "Morning Routine"
+        )
+    }
+}
 
+extension WorkoutManager {
+    
+    private func createPredefinedActivitySessions() async -> [ActivitySession] {
+        return [
+            createUpperBodyStrengthActivitySession(),
+            createLowerBodyStrengthActivitySession(),
+            createCardioEnduranceActivitySession(),
+            createCoreActivitySession(),
+            createMobilityActivitySession()
+        ]
+    }
+    
+    private func createUpperBodyStrengthActivitySession() -> ActivitySession {
         let shortRest = Rest(goal: .time(30, .seconds))
         let openRest = Rest()
         
         let pullUps = Exercise(movement: .pullUps, goal: .open)
         let dips = Exercise(movement: .chestDips, goal: .open)
-        let upperBodyCalisthenicsWarmup = Workout(
+        let warmupWorkout = Workout(
             exercises: [pullUps, dips],
             restPeriods: [shortRest, shortRest],
-            iterations: 2
+            iterations: 2,
+            workoutType: .dynamicWarmup
         )
         
         let latPulldown = Exercise(movement: .latPulldowns, goal: .open)
-        let backFunctionalStrength = Workout(
+        let backStrengthWorkout = Workout(
             exercises: [latPulldown],
             restPeriods: [openRest],
-            iterations: 3
+            iterations: 3,
+            workoutType: .functionalStrengthWorkout
         )
         
         let benchPress = Exercise(movement: .benchPress, goal: .open)
-        let chestFunctionalStrength = Workout(
+        let chestStrengthWorkout = Workout(
             exercises: [benchPress],
             restPeriods: [openRest],
-            iterations: 3
+            iterations: 3,
+            workoutType: .functionalStrengthWorkout
         )
         
         let cablePullover = Exercise(movement: .cablePullover, goal: .open)
-        let backMuscularEndurance = Workout(
+        let backEnduranceWorkout = Workout(
             exercises: [cablePullover],
             restPeriods: [openRest],
-            iterations: 3
+            iterations: 3,
+            workoutType: .muscularEnduranceWorkout
         )
 
         let chestFlys = Exercise(movement: .chestFlys, goal: .open)
-        let chestMuscularEndurance = Workout(
+        let chestEnduranceWorkout = Workout(
             exercises: [chestFlys],
             restPeriods: [openRest],
-            iterations: 3
+            iterations: 3,
+            workoutType: .muscularEnduranceWorkout
         )
         
-        let upperBodyStrengthSequence = WorkoutSequence(
-            workouts: [
-                upperBodyCalisthenicsWarmup,
-                backFunctionalStrength,
-                chestFunctionalStrength,
-                chestMuscularEndurance,
-                backMuscularEndurance
+        return ActivitySession(
+            activityGroups: [
+                ActivityGroup(activity: .traditionalStrengthTraining, location: .indoor, workouts: [warmupWorkout, backStrengthWorkout, chestStrengthWorkout, chestEnduranceWorkout, backEnduranceWorkout], displayName: "Upper Body")
             ],
-            activity: .traditionalStrengthTraining,
-            location: .indoor
-        )
-        
-        return TrainingSession(
-            workoutSequences: [upperBodyStrengthSequence],
             displayName: "Upper Body"
         )
     }
 
-    private func createLowerBodyStrengthTrainingSession() -> TrainingSession {
-        
+    private func createLowerBodyStrengthActivitySession() -> ActivitySession {
         let openRest = Rest()
         let timedRest = Rest(goal: .time(30, .seconds))
         
         let cycling = Exercise(movement: .cycling, goal: .time(300, .seconds), alert: .heartRate(zone: 2))
         let cardioWarmupWorkout = Workout(
             exercises: [cycling],
-            restPeriods: []
+            restPeriods: [],
+            workoutType: .warmup
         )
         
         let adductors = Exercise(movement: .adductors, goal: .open)
@@ -807,106 +1161,123 @@ class WorkoutManager: ObservableObject {
         let hipWarmupWorkout = Workout(
             exercises: [adductors, abductors],
             restPeriods: [openRest, openRest],
-            iterations: 2
+            iterations: 2,
+            workoutType: .functionalWarmup
         )
         
         let backSquats = Exercise(movement: .barbellBackSquat, goal: .open)
-        let frontLowerBodyWorkout = Workout(
+        let squatWorkout = Workout(
             exercises: [backSquats],
             restPeriods: [openRest],
-            iterations: 3
+            iterations: 3,
+            workoutType: .functionalStrengthWorkout
         )
         
         let deadlifts = Exercise(movement: .barbellDeadlifts, goal: .open)
-        let backLowerBodyWorkout = Workout(
+        let deadliftWorkout = Workout(
             exercises: [deadlifts],
             restPeriods: [openRest],
-            iterations: 3
+            iterations: 3,
+            workoutType: .functionalStrengthWorkout
         )
         
         let calfRaises = Exercise(movement: .calfRaises, goal: .open)
         let stabilityWorkout = Workout(
             exercises: [calfRaises],
             restPeriods: [openRest],
-            iterations: 3
+            iterations: 3,
+            workoutType: .functionalStabilityWorkout
         )
+        
+        return ActivitySession(
+            activityGroups: [
+                ActivityGroup(activity: .traditionalStrengthTraining, location: .indoor, workouts: [cardioWarmupWorkout, hipWarmupWorkout, squatWorkout, deadliftWorkout, stabilityWorkout], displayName: "Lower Body")
+            ],
+            displayName: "Lower Body"
+        )
+    }
+
+    private func createCardioEnduranceActivitySession() -> ActivitySession {
+        let timedRest = Rest(goal: .time(30, .seconds))
+        
+        // Cycling warmup and main workout
+        let cyclingWarmup = Exercise(movement: .cycling, goal: .time(300, .seconds), alert: .heartRate(zone: 2))
+        let cyclingWarmupWorkout = Workout(
+            exercises: [cyclingWarmup],
+            restPeriods: [],
+            workoutType: .warmup
+        )
+        
+        let cycling = Exercise(movement: .cycling, goal: .time(900, .seconds), alert: .heartRate(zone: 3))
+        let cyclingWorkout = Workout(
+            exercises: [cycling],
+            restPeriods: [],
+            workoutType: .aerobicEnduranceWorkout
+        )
+        
+        // Running main workout
+        let continuousRunning = Exercise(movement: .run, goal: .time(1800, .seconds), alert: .speed(10, unit: .kilometersPerHour))
+        let runningWorkout = Workout(
+            exercises: [continuousRunning],
+            restPeriods: [],
+            workoutType: .aerobicEnduranceWorkout
+        )
+        
+        // Jump rope HIIT workout
+        let jumpRope = Exercise(movement: .jumpRope, goal: .time(90, .seconds), alert: .heartRate(zone: 4))
+        let plyometricsWorkout = Workout(
+            exercises: [jumpRope],
+            restPeriods: [timedRest],
+            iterations: 3,
+            workoutType: .anaerobicEnduranceWorkout
+        )
+        
+        return ActivitySession(
+            activityGroups: [
+                ActivityGroup(activity: .cycling, location: .indoor, workouts: [cyclingWarmupWorkout, cyclingWorkout], displayName: "Cycling"),
+                ActivityGroup(activity: .running, location: .indoor, workouts: [runningWorkout], displayName: "Running"),
+                ActivityGroup(activity: .jumpRope, location: .indoor, workouts: [plyometricsWorkout], displayName: "HIIT")
+            ],
+            displayName: "Mixed Cardio"
+        )
+    }
+    
+    private func createCoreActivitySession() -> ActivitySession {
+        let timedRest = Rest(goal: .time(30, .seconds))
         
         let lSitHold = Exercise(movement: .lSit, goal: .time(30, .seconds))
         let hangingLegRaises = Exercise(movement: .legRaise, goal: .time(30, .seconds))
         let coreWorkout = Workout(
             exercises: [lSitHold, hangingLegRaises],
             restPeriods: [timedRest, timedRest],
-            iterations: 2
+            iterations: 3,
+            workoutType: .functionalStabilityWorkout
         )
         
-        let cardioSequence = WorkoutSequence(
-            workouts: [cardioWarmupWorkout],
-            activity: .cycling,
-            location: .indoor
-        )
-        
-        let strengthSequence = WorkoutSequence(
-            workouts: [hipWarmupWorkout, frontLowerBodyWorkout, backLowerBodyWorkout, stabilityWorkout],
-            activity: .traditionalStrengthTraining,
-            location: .indoor
-        )
-        
-        let coreSequence = WorkoutSequence(
-            workouts: [coreWorkout],
-            activity: .coreTraining,
-            location: .indoor
-        )
-        
-        return TrainingSession(
-            workoutSequences: [cardioSequence, strengthSequence, coreSequence],
-            displayName: "Lower Body"
+        return ActivitySession(
+            activityGroups: [
+                ActivityGroup(activity: .coreTraining, location: .indoor, workouts: [coreWorkout], displayName: "Core Training")
+            ],
+            displayName: "Core Training"
         )
     }
-
-    private func createLowerBodyEnduranceTrainingSession() -> TrainingSession {
-
-        let timedRest = Rest(goal: .time(30, .seconds))
+    
+    private func createMobilityActivitySession() -> ActivitySession {
+        let shortRest = Rest(goal: .time(15, .seconds))
         
-        let cycling = Exercise(movement: .cycling, goal: .time(300, .seconds), alert: .heartRate(zone: 2))
-        let cardioWarmupWorkout = Workout(
-            exercises: [cycling],
-            restPeriods: []
+        let hipFlexorStretch = Exercise(movement: .benchHipFlexorStretch, goal: .time(60, .seconds))
+        let mobilityWorkout = Workout(
+            exercises: [hipFlexorStretch],
+            restPeriods: [shortRest],
+            iterations: 2,
+            workoutType: .cooldown
         )
         
-        let continuousRunning = Exercise(movement: .run, goal: .time(1800, .seconds), alert: .speed(10, unit: .kilometersPerHour)) // 10 km/h = 2.78 m/s
-        let runningWorkout = Workout(
-            exercises: [continuousRunning],
-            restPeriods: []
-        )
-        
-        let jumpRope = Exercise(movement: .jumpRope, goal: .time(90, .seconds), alert: .heartRate(zone: 4))
-        let plyometricsWorkout = Workout(
-            exercises: [jumpRope],
-            restPeriods: [timedRest],
-            iterations: 3
-        )
-        
-        let cardioSequence = WorkoutSequence(
-            workouts: [cardioWarmupWorkout],
-            activity: .cycling,
-            location: .indoor
-        )
-        
-        let runningSequence = WorkoutSequence(
-            workouts: [runningWorkout],
-            activity: .running,
-            location: .indoor
-        )
-        
-        let plyometricsSequence = WorkoutSequence(
-            workouts: [plyometricsWorkout],
-            activity: .highIntensityIntervalTraining,
-            location: .indoor
-        )
-        
-        return TrainingSession(
-            workoutSequences: [cardioSequence, runningSequence, plyometricsSequence],
-            displayName: "Cardio"
+        return ActivitySession(
+            activityGroups: [
+                ActivityGroup(activity: .flexibility, location: .indoor, workouts: [mobilityWorkout], displayName: "Mobility & Flexibility")
+            ],
+            displayName: "Mobility & Flexibility"
         )
     }
 }

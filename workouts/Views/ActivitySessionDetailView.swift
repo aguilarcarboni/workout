@@ -2,22 +2,25 @@ import SwiftUI
 import WorkoutKit
 import HealthKit
 
-struct TrainingSessionDetailView: View {
+struct ActivitySessionDetailView: View {
     @State private var notificationManager: NotificationManager = .shared
     @State private var expandedWorkouts: Set<String> = []
-    let trainingSession: TrainingSession
+    let activitySession: ActivitySession
     @Environment(\.dismiss) private var dismiss
     
-    private func scheduleTrainingSession() async {
-        let customWorkouts = trainingSession.toWorkoutKitType()
+    private func scheduleActivitySession() async {
+        let customWorkouts = activitySession.toWorkoutKitType()
+        
+        // Schedule the workouts with slight delays between them
+        let baseSchedulingDate = Date().addingTimeInterval(60) // 1 minute from now
         
         for (index, customWorkout) in customWorkouts.enumerated() {
             let workoutPlanWorkout = WorkoutPlan.Workout.custom(customWorkout)
             let plan = WorkoutPlan(workoutPlanWorkout, id: UUID())
             
-            // Schedule workouts sequentially with some spacing
-            let schedulingDate = Date().addingTimeInterval(TimeInterval(index * 300)) // 5 minutes apart
-            let dateComponents = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: schedulingDate)
+            // Schedule each workout with a 5-second delay between them
+            let schedulingDate = baseSchedulingDate.addingTimeInterval(TimeInterval(index * 5))
+            let dateComponents = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: schedulingDate)
             
             await WorkoutScheduler.shared.schedule(plan, at: dateComponents)
             
@@ -31,21 +34,30 @@ struct TrainingSessionDetailView: View {
         NavigationStack {
             VStack {
                 headerSection
+
                 List {
-                    
-                    // Warmup Section
-                    if let warmup = trainingSession.warmup {
-                        warmupSection(warmup)
-                    }
-                    
-                    // Main Workout Sequences
-                    ForEach(Array(trainingSession.workoutSequences.enumerated()), id: \.offset) { index, sequence in
-                        workoutSequenceSection(sequence, index: index)
-                    }
-                    
-                    // Cooldown Section
-                    if let cooldown = trainingSession.cooldown {
-                        cooldownSection(cooldown)
+                    // Group workouts by activity groups
+                    ForEach(Array(activitySession.activityGroups.enumerated()), id: \.offset) { groupIndex, group in
+                        Section {
+                            ForEach(Array(group.workouts.enumerated()), id: \.offset) { workoutIndex, workout in
+                                workoutRow(for: workout, index: workoutIndex, groupIndex: groupIndex)
+                            }
+                        } header: {
+                            HStack {
+                                Image(systemName: group.activity.icon)
+                                    .font(.caption)
+                                    .foregroundStyle(Color("AccentColor"))
+                                Text(group.displayName ?? group.activity.displayName)
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                                
+                                Spacer()
+                                
+                                Text("(\(group.workouts.count) workout\(group.workouts.count == 1 ? "" : "s"))")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
                     }
                 }
                 .navigationTitle("")
@@ -54,14 +66,8 @@ struct TrainingSessionDetailView: View {
                     ToolbarItem(placement: .navigationBarTrailing) {
                         HStack {
                             Button {
-                                print(trainingSession.printableDescription())
-                            } label: {
-                                Image(systemName: "doc.text")
-                            }
-                            
-                            Button {
                                 Task {
-                                    await scheduleTrainingSession()
+                                    await scheduleActivitySession()
                                     dismiss()
                                 }
                             } label: {
@@ -87,148 +93,82 @@ struct TrainingSessionDetailView: View {
     private var headerSection: some View {
         Section {
             VStack(alignment: .center, spacing: 12) {
-                Text(trainingSession.displayName)
+                Text(activitySession.displayName)
                     .font(.largeTitle)
                     .fontWeight(.bold)
 
-            Text("TRAINING SESSION")
-                .font(.caption)
-                .fontWeight(.semibold)
-                .foregroundStyle(.secondary)
+                Text("ACTIVITY SESSION")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.secondary)
             }
         }
     }
     
-    private var sessionDescription: String {
-        var components: [String] = []
-        
-        if trainingSession.warmup != nil {
-            components.append("Warmup")
-        }
-        
-        components.append("\(trainingSession.workoutSequences.count) sequence\(trainingSession.workoutSequences.count == 1 ? "" : "s")")
-        
-        if trainingSession.cooldown != nil {
-            components.append("Cooldown")
-        }
-        
-        return components.joined(separator: " • ")
-    }
-    
-    private func warmupSection(_ warmup: Warmup) -> some View {
-        Section("Warmup") {
-            ForEach(Array(warmup.workouts.enumerated()), id: \.offset) { index, workout in
-                workoutRow(for: workout, icon: "figure.walk", workoutId: "warmup-\(index)")
-            }
-        }
-    }
-    
-    private func workoutSequenceSection(_ sequence: WorkoutSequence, index: Int) -> some View {
-        Section {
-            ForEach(Array(sequence.workouts.enumerated()), id: \.offset) { workoutIndex, workout in
-                workoutRow(for: workout, icon: sequence.activity.icon, workoutId: "sequence-\(index)-\(workoutIndex)")
-            }
-        } header: {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 12) {
-                    HStack(spacing: 4) {
-                        Image(systemName: sequence.activity.icon)
-                            .font(.headline)
-                            .foregroundStyle(Color("AccentColor"))
-                        Text(sequence.activity.displayName)
-                            .font(.headline)
-                            .fontWeight(.semibold)
-                    }
-                    
-                    HStack(spacing: 4) {
-                        Image(systemName: sequence.location.icon)
-                            .font(.caption)
-                            .foregroundStyle(Color("AccentColor"))
-                        Text(sequence.location.displayName)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-        }
-    }
-    
-    private func cooldownSection(_ cooldown: Cooldown) -> some View {
-        Section("Cooldown") {
-            ForEach(Array(cooldown.workouts.enumerated()), id: \.offset) { index, workout in
-                workoutRow(for: workout, icon: "figure.cooldown", workoutId: "cooldown-\(index)")
-            }
-        }
-    }
-    
-    private func workoutRow(for workout: Workout, icon: String, workoutId: String) -> some View {
+    private func workoutRow(for workout: Workout, index: Int, groupIndex: Int) -> some View {
         let intervalBlock = workout.toWorkoutKitType()
+        let workoutId = "workout-\(groupIndex)-\(index)"
         let isExpanded = expandedWorkouts.contains(workoutId)
         
         return VStack(alignment: .leading, spacing: 8) {
-            Button(action: {
-                if isExpanded {
-                    expandedWorkouts.remove(workoutId)
-                } else {
-                    expandedWorkouts.insert(workoutId)
-                }
-            }) {
-                HStack {
-                    
-                    VStack(alignment: .leading, spacing: 4) {
-                        
-                        HStack {
-                            Image(systemName: "repeat")
-                                .foregroundStyle(Color("AccentColor"))
-                                .font(.caption)
-                            Text("\(intervalBlock.iterations) set\(intervalBlock.iterations > 1 ? "s" : "")")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            
-                        }
-                        
-                        // Show target muscles
-                        if !workout.targetMuscles.isEmpty {
-                            HStack {
-                                Image(systemName: "figure.arms.open")
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                                Text(workout.targetMuscles.map { $0.rawValue }.joined(separator: ", "))
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                            }
-                        }
-                        
-                        // Show target fitness metrics
-                        if !workout.targetMetrics.isEmpty {
-                            HStack {
-                                Image(systemName: "target")
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                                Text(workout.targetMetrics.sorted { sortFitnessMetrics($0, $1) }.map { $0.rawValue }.joined(separator: ", "))
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                            }
-                        }
+                Button(action: {
+                    if isExpanded {
+                        expandedWorkouts.remove(workoutId)
+                    } else {
+                        expandedWorkouts.insert(workoutId)
                     }
-                    
-                    Spacer()
-                    
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .foregroundStyle(.secondary)
-                        .font(.caption)
+                }) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            // Show iterations
+                            HStack {
+                                Image(systemName: "repeat")
+                                    .foregroundStyle(Color("AccentColor"))
+                                    .font(.caption)
+                                Text("\(intervalBlock.iterations) set\(intervalBlock.iterations > 1 ? "s" : "")")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                                                        // Show target muscles
+                            if !workout.targetMuscles.isEmpty {
+                                HStack {
+                                    Image(systemName: "figure.arms.open")
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                    Text(workout.targetMuscles.map { $0.rawValue }.joined(separator: ", "))
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                }
+                            }
+                            
+                            // Show target fitness metrics
+                            if !workout.targetMetrics.isEmpty {
+                                HStack {
+                                    Image(systemName: "target")
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                    Text(workout.targetMetrics.sorted { sortFitnessMetrics($0, $1) }.map { $0.rawValue }.joined(separator: ", "))
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                }
+                            }
+                        }
+                        
+                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                            .foregroundStyle(.secondary)
+                            .font(.caption)
+                    }
+                }
+                .buttonStyle(PlainButtonStyle())
+                .foregroundColor(.primary)
+                
+                if isExpanded {
+                    exerciseDetailsView(for: intervalBlock, workout: workout)
                 }
             }
-            .buttonStyle(PlainButtonStyle())
-            .foregroundColor(.primary)
-            
-            if isExpanded {
-                exerciseDetailsView(for: intervalBlock, workout: workout)
-            }
-        }
-        .padding(.vertical, 4)
+            .padding(.vertical, 4)
     }
     
     private func exerciseDetailsView(for block: IntervalBlock, workout: Workout) -> some View {
@@ -301,7 +241,7 @@ struct TrainingSessionDetailView: View {
                 Image(systemName: "target")
                     .font(.caption2)
                     .foregroundStyle(Color("AccentColor"))
-                    goalDescription(for: step.step.goal)
+                goalDescription(for: step.step.goal)
             }
 
             if let alert = step.step.alert {
@@ -317,33 +257,6 @@ struct TrainingSessionDetailView: View {
     }
     
     // MARK: - Helper Functions
-    
-    private func getAllTargetMetrics() -> Set<FitnessMetric> {
-        var allMetrics: Set<FitnessMetric> = []
-        
-        // Add metrics from warmup
-        if let warmup = trainingSession.warmup {
-            for workout in warmup.workouts {
-                allMetrics.formUnion(workout.targetMetrics)
-            }
-        }
-        
-        // Add metrics from workout sequences
-        for sequence in trainingSession.workoutSequences {
-            for workout in sequence.workouts {
-                allMetrics.formUnion(workout.targetMetrics)
-            }
-        }
-        
-        // Add metrics from cooldown
-        if let cooldown = trainingSession.cooldown {
-            for workout in cooldown.workouts {
-                allMetrics.formUnion(workout.targetMetrics)
-            }
-        }
-        
-        return allMetrics
-    }
     
     private func sortFitnessMetrics(_ lhs: FitnessMetric, _ rhs: FitnessMetric) -> Bool {
         // Define a consistent order for fitness metrics

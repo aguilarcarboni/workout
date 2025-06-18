@@ -4,30 +4,30 @@ import WorkoutKit
 struct ContentView: View {
     
     @State private var workoutManager: WorkoutManager = .shared
+    @State private var mindAndBodyManager: MindAndBodyManager = .shared
     @State private var notificationManager: NotificationManager = .shared
     @State private var workoutScheduler: WorkoutScheduler = .shared
     @State private var isLoading: Bool = true
+    @State private var selectedTab: Int = 0
 
     var body: some View {
         Group {
             if !isLoading {
-                TabView {
-                    WorkoutsView()
+                TabView(selection: $selectedTab) {
+                    ActivitySessionsView()
                     .tabItem {
                         Label("Workout", systemImage: "figure.strengthtraining.traditional")
                     }
+                    .tag(0)
 
-                    RecoveryView()
+                    MindAndBodyView()
                     .tabItem {
-                        Label("Recovery", systemImage: "figure.mind.and.body")
+                        Label("Mind and Body", systemImage: "figure.mind.and.body")
                     }
-                    
-                    ScheduledWorkoutsView()
-                    .tabItem {
-                        Label("Scheduled", systemImage: "clock")
-                    }
+                    .tag(1)
                     
                 }
+                .accentColor(selectedTab == 0 ? Color.accentColor : Color("SecondaryAccentColor"))
             } else {
                 ProgressView()
             }
@@ -41,6 +41,7 @@ struct ContentView: View {
             // Prepare Workouts
             await removeAllScheduledWorkoutsScheduledBeforeToday()
             await workoutManager.createWorkouts()
+            await mindAndBodyManager.createMindAndBodySessions()
             self.isLoading = false
             
         }
