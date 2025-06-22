@@ -1,10 +1,11 @@
 import SwiftUI
+import SwiftData
 import WorkoutKit
 
 struct ContentView: View {
     
+    @Environment(\.modelContext) private var modelContext
     @State private var workoutManager: WorkoutManager = .shared
-    @State private var mindAndBodyManager: MindAndBodyManager = .shared
     @State private var notificationManager: NotificationManager = .shared
     @State private var workoutScheduler: WorkoutScheduler = .shared
     @State private var isLoading: Bool = true
@@ -38,10 +39,9 @@ struct ContentView: View {
             _ = await workoutScheduler.requestAuthorization()
             _ = await notificationManager.requestAuthorization()
             
-            // Prepare Workouts
+            // Load workouts from SwiftData
             await removeAllScheduledWorkoutsScheduledBeforeToday()
-            await workoutManager.createWorkouts()
-            await mindAndBodyManager.createMindAndBodySessions()
+            workoutManager.loadSessions(from: modelContext)
             self.isLoading = false
             
         }

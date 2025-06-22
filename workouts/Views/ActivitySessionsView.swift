@@ -1,8 +1,10 @@
 import SwiftUI
+import SwiftData
 import WorkoutKit
 
 struct ActivitySessionsView: View {
 
+    @Environment(\.modelContext) private var modelContext
     @State private var selectedActivitySession: ActivitySession?
     @State private var showingCreateForm = false
     @State private var showingScheduledWorkouts = false
@@ -24,6 +26,11 @@ struct ActivitySessionsView: View {
                                 ActivitySessionRow(session: session) {
                                     selectedActivitySession = session
                                 }
+                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                    Button("Delete", role: .destructive) {
+                                        workoutManager.deleteActivitySession(session, from: modelContext)
+                                    }
+                                }
                             }
                         }
                     }
@@ -32,7 +39,8 @@ struct ActivitySessionsView: View {
                     }
                     .sheet(isPresented: $showingCreateForm) {
                         CreateActivitySessionView { session in
-                            workoutManager.addActivitySession(session)
+                            // Refresh workouts after adding new session
+                            workoutManager.loadSessions(from: modelContext)
                         }
                     }
                     .sheet(isPresented: $showingScheduledWorkouts) {
@@ -59,9 +67,8 @@ struct ActivitySessionsView: View {
             }
         }
         .onAppear {
-            Task {
-                await workoutManager.createWorkouts()
-            }
+            // Load sessions from SwiftData when view appears
+            workoutManager.loadSessions(from: modelContext)
         }
     }
 }

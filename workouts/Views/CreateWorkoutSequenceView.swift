@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import WorkoutKit
 import HealthKit
 
@@ -6,7 +7,8 @@ import HealthKit
 
 struct CreateActivitySessionView: View {
     @Environment(\.dismiss) private var dismiss
-    let onSave: (ActivitySession) -> Void
+    @Environment(\.modelContext) private var modelContext
+    let onSave: ((ActivitySession) -> Void)?
     
     @State private var sequenceName = ""
     @State private var activityGroups: [ActivityGroup] = []
@@ -121,7 +123,12 @@ struct CreateActivitySessionView: View {
                                 activityGroups: activityGroups,
                                 displayName: displayName
                             )
-                            onSave(session)
+                            
+                            // Save to SwiftData
+                            WorkoutManager.shared.addActivitySession(session, to: modelContext)
+                            
+                            // Call optional callback
+                            onSave?(session)
                             dismiss()
                         }
                         .disabled(activityGroups.isEmpty)
@@ -596,5 +603,12 @@ struct CreateExerciseView: View {
 }
 
 #Preview {
-    CreateActivitySessionView { _ in }
+    CreateActivitySessionView(onSave: nil)
+        .modelContainer(for: [
+            PersistentActivitySession.self,
+            PersistentActivityGroup.self,
+            PersistentWorkout.self,
+            PersistentExercise.self,
+            PersistentRest.self
+        ], inMemory: true)
 } 
