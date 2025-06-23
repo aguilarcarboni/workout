@@ -40,7 +40,6 @@ struct MindAndBodyView: View {
                     }
                     .sheet(isPresented: $showingCreateForm) {
                         CreateActivitySessionView { session in
-                            // Refresh sessions after adding
                             workoutManager.loadSessions(from: modelContext)
                         }
                     }
