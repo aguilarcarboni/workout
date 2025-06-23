@@ -33,17 +33,15 @@ final class PersistentActivitySession {
 final class PersistentActivityGroup {
     var activityRawValue: UInt = 0
     var locationRawValue: Int = 0
-    var displayName: String?
     
     @Relationship(deleteRule: .cascade, inverse: \PersistentWorkout.activityGroup)
     var workouts: [PersistentWorkout]? = []
     
     var session: PersistentActivitySession?
     
-    init(activity: HKWorkoutActivityType, location: HKWorkoutSessionLocationType, displayName: String? = nil) {
+    init(activity: HKWorkoutActivityType, location: HKWorkoutSessionLocationType) {
         self.activityRawValue = activity.rawValue
         self.locationRawValue = location.rawValue
-        self.displayName = displayName
     }
     
     var activity: HKWorkoutActivityType {
@@ -62,8 +60,7 @@ final class PersistentActivityGroup {
         return ActivityGroup(
             activity: activity,
             location: location,
-            workouts: runtimeWorkouts,
-            displayName: displayName
+            workouts: runtimeWorkouts
         )
     }
 }
@@ -253,8 +250,7 @@ extension ActivityGroup {
     func toPersistentModel() -> PersistentActivityGroup {
         let persistent = PersistentActivityGroup(
             activity: activity,
-            location: location,
-            displayName: displayName
+            location: location
         )
         
         for workout in workouts {

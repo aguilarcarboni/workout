@@ -23,83 +23,9 @@ struct CreateActivitySessionView: View {
                         .textInputAutocapitalization(.words)
                 }
                 
-                Section("Activity Groups") {
-                    ForEach(activityGroups.indices, id: \.self) { index in
-                        HStack {
-                            VStack(alignment: .leading) {
-                                HStack {
-                                    Image(systemName: activityGroups[index].activity.icon)
-                                        .foregroundColor(.accentColor)
-                                    Text(activityGroups[index].displayName ?? activityGroups[index].activity.displayName)
-                                        .font(.headline)
-                                }
-                                
-                                HStack {
-                                    Text("\(activityGroups[index].workouts.count) workouts")
-                                    Text("• \(activityGroups[index].location.displayName)")
-                                }
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                
-                                // Show target metrics preview
-                                if !activityGroups[index].targetMetrics.isEmpty {
-                                    Text(activityGroups[index].targetMetrics.prefix(2).map { $0.rawValue }.joined(separator: ", "))
-                                        .font(.caption2)
-                                        .foregroundColor(.accentColor)
-                                }
-                            }
-                            Spacer()
-                            Button("Delete", role: .destructive) {
-                                activityGroups.remove(at: index)
-                            }
-                            .font(.caption)
-                        }
-                    }
-                    
-                    Button("Add Activity Group") {
-                        showingActivityGroupCreator = true
-                    }
-                }
+                activityGroupsSection
                 
-                // Show combined target info if activity groups exist
-                if !activityGroups.isEmpty {
-                    let allTargetMetrics = Array(Set(activityGroups.flatMap { $0.targetMetrics }))
-                    let allTargetMuscles = Array(Set(activityGroups.flatMap { $0.targetMuscles }))
-                    
-                    Section("Session Overview") {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Total Activity Groups: \(activityGroups.count)")
-                                .font(.caption)
-                                .fontWeight(.semibold)
-                            
-                            Text("Total Workouts: \(activityGroups.reduce(0) { $0 + $1.workouts.count })")
-                                .font(.caption)
-                                .fontWeight(.semibold)
-                        }
-                        
-                        if !allTargetMetrics.isEmpty {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Target Fitness Metrics:")
-                                    .font(.caption)
-                                    .fontWeight(.semibold)
-                                Text(allTargetMetrics.map { $0.rawValue }.joined(separator: ", "))
-                                    .font(.caption2)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                        
-                        if !allTargetMuscles.isEmpty {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Target Muscles:")
-                                    .font(.caption)
-                                    .fontWeight(.semibold)
-                                Text(allTargetMuscles.map { $0.rawValue }.joined(separator: ", "))
-                                    .font(.caption2)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                    }
-                }
+                sessionOverviewSection
             }
             .navigationTitle("New Activity Session")
             .navigationBarTitleDisplayMode(.inline)
@@ -147,6 +73,81 @@ struct CreateActivitySessionView: View {
             }
         }
     }
+    
+    private var activityGroupsSection: some View {
+        Section("Activity Groups") {
+            ForEach(activityGroups.indices, id: \.self) { index in
+                HStack {
+                    VStack(alignment: .leading) {
+                        HStack {
+                            Image(systemName: activityGroups[index].activity.icon)
+                                .foregroundColor(.accentColor)
+                            Text(activityGroups[index].activity.displayName)
+                                .font(.headline)
+                        }
+                        HStack {
+                            Text("\(activityGroups[index].workouts.count) workouts")
+                            Text("• \(activityGroups[index].location.displayName)")
+                        }
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        if !activityGroups[index].targetMetrics.isEmpty {
+                            Text(activityGroups[index].targetMetrics.prefix(2).map { $0.rawValue }.joined(separator: ", "))
+                                .font(.caption2)
+                                .foregroundColor(.accentColor)
+                        }
+                    }
+                    Spacer()
+                    Button("Delete", role: .destructive) {
+                        activityGroups.remove(at: index)
+                    }
+                    .font(.caption)
+                }
+            }
+            Button("Add Activity Group") {
+                showingActivityGroupCreator = true
+            }
+        }
+    }
+
+    private var sessionOverviewSection: some View {
+        let allTargetMetrics = Array(Set(activityGroups.flatMap { $0.targetMetrics }))
+        let allTargetMuscles = Array(Set(activityGroups.flatMap { $0.targetMuscles }))
+        return Group {
+            if !activityGroups.isEmpty {
+                Section("Session Overview") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Total Activity Groups: \(activityGroups.count)")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                        Text("Total Workouts: \(activityGroups.reduce(0) { $0 + $1.workouts.count })")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                    }
+                    if !allTargetMetrics.isEmpty {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Target Fitness Metrics:")
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                            Text(allTargetMetrics.map { $0.rawValue }.joined(separator: ", "))
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    if !allTargetMuscles.isEmpty {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Target Muscles:")
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                            Text(allTargetMuscles.map { $0.rawValue }.joined(separator: ", "))
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 // MARK: - Create Activity Group View
@@ -155,7 +156,6 @@ struct CreateActivityGroupView: View {
     @Environment(\.dismiss) private var dismiss
     let onSave: (ActivityGroup) -> Void
     
-    @State private var groupName = ""
     @State private var activity: HKWorkoutActivityType = .traditionalStrengthTraining
     @State private var location: HKWorkoutSessionLocationType = .indoor
     @State private var workouts: [Workout] = []
@@ -166,9 +166,6 @@ struct CreateActivityGroupView: View {
         NavigationStack {
             Form {
                 Section("Activity Group Details") {
-                    TextField("Group Name (Optional)", text: $groupName)
-                        .textInputAutocapitalization(.words)
-                    
                     Picker("Activity Type", selection: $activity) {
                         Text("Strength Training").tag(HKWorkoutActivityType.traditionalStrengthTraining)
                         Text("Functional Strength Training").tag(HKWorkoutActivityType.functionalStrengthTraining)
@@ -277,12 +274,10 @@ struct CreateActivityGroupView: View {
                         }
                         
                         Button("Save") {
-                            let displayName = groupName.isEmpty ? nil : groupName
                             let activityGroup = ActivityGroup(
                                 activity: activity,
                                 location: location,
-                                workouts: workouts,
-                                displayName: displayName
+                                workouts: workouts
                             )
                             onSave(activityGroup)
                             dismiss()
@@ -611,4 +606,4 @@ struct CreateExerciseView: View {
             PersistentExercise.self,
             PersistentRest.self
         ], inMemory: true)
-} 
+}

@@ -47,7 +47,7 @@ struct ActivitySessionDetailView: View {
                                 Image(systemName: group.activity.icon)
                                     .font(.caption)
                                     .foregroundStyle(Color("AccentColor"))
-                                Text(group.displayName ?? group.activity.displayName)
+                                Text(group.activity.displayName)
                                     .font(.caption)
                                     .fontWeight(.semibold)
                                 
