@@ -4,6 +4,7 @@ import HealthKit
 struct WorkoutHistoryView: View {
     @StateObject private var healthManager = HealthManager.shared
     @State private var selectedWorkout: HKWorkout?
+    @State private var showingSummary = false
     
     var body: some View {
         NavigationView {
@@ -14,6 +15,17 @@ struct WorkoutHistoryView: View {
                     }
             }
             .navigationTitle("Workout History")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        showingSummary = true
+                    } label: {
+                        Image(systemName: "text.append")
+                            .foregroundColor(Color("AccentColor"))
+                    }
+                    .disabled(healthManager.workouts.isEmpty)
+                }
+            }
             .onAppear {
                 if healthManager.isAuthorized {
                     healthManager.fetchWorkouts()
@@ -22,6 +34,13 @@ struct WorkoutHistoryView: View {
             .sheet(item: $selectedWorkout) { workout in
                 NavigationView {
                     WorkoutView(workout: workout)
+                }
+            }
+            .sheet(isPresented: $showingSummary) {
+                if let mostRecentWorkout = healthManager.workouts.first {
+                    NavigationView {
+                        WorkoutSummaryView(workout: mostRecentWorkout)
+                    }
                 }
             }
         }

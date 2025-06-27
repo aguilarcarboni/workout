@@ -12,6 +12,7 @@ struct WorkoutView: View {
     @State private var matchedActivitySession: ActivitySession?
     @State private var isLoadingDetails = true
     @State private var showingFullPlan = false
+    @State private var showingSummary = false
     
     var body: some View {
         ScrollView {
@@ -32,6 +33,21 @@ struct WorkoutView: View {
         }
         .navigationTitle("Workout Details")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    showingSummary = true
+                } label: {
+                    Image(systemName: "text.append")
+                        .foregroundColor(Color("AccentColor"))
+                }
+            }
+        }
+        .sheet(isPresented: $showingSummary) {
+            NavigationView {
+                WorkoutSummaryView(workout: workout)
+            }
+        }
         .task {
             await loadWorkoutDetails()
         }
