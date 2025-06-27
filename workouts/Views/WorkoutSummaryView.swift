@@ -192,8 +192,6 @@ struct WorkoutSummaryView: View {
         .cornerRadius(8)
     }
     
-
-    
     @available(iOS 26.0, *)
     private func performAIGeneration() async {
         guard model.availability == .available else { return }
