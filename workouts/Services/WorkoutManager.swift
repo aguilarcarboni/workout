@@ -738,10 +738,18 @@ class ActivitySession: WorkoutKitConvertible, Identifiable, ObservableObject {
     let id = UUID()
     let activityGroups: [ActivityGroup]
     let displayName: String
+    let workoutPlans: [WorkoutPlan] // Pre-created workout plans for scheduling
     
     init(activityGroups: [ActivityGroup], displayName: String) {
         self.activityGroups = activityGroups
         self.displayName = displayName
+        
+        // Create workout plans during initialization
+        let customWorkouts = activityGroups.map { $0.toCustomWorkout(sessionDisplayName: displayName) }
+        self.workoutPlans = customWorkouts.map { customWorkout in
+            let workoutPlanWorkout = WorkoutPlan.Workout.custom(customWorkout)
+            return WorkoutPlan(workoutPlanWorkout, id: UUID())
+        }
     }
     
     /// Convenience initializer for single activity type sessions (backward compatibility)
@@ -827,6 +835,52 @@ class ActivitySession: WorkoutKitConvertible, Identifiable, ObservableObject {
     }
 }
 
+// MARK: - Session Abstraction Layer
+
+/**
+ * WorkoutSession: A wrapper around ActivitySession for regular workout sessions
+ */
+class WorkoutSession: ObservableObject, Identifiable {
+    let id = UUID()
+    let activitySession: ActivitySession
+    
+    var displayName: String { activitySession.displayName }
+    var workouts: [Workout] { activitySession.workouts }
+    var activityGroups: [ActivityGroup] { activitySession.activityGroups }
+    var targetMuscles: [Muscle] { activitySession.targetMuscles }
+    var targetMetrics: [FitnessMetric] { activitySession.targetMetrics }
+    
+    init(activitySession: ActivitySession) {
+        self.activitySession = activitySession
+    }
+    
+    func printableDescription() -> String {
+        return activitySession.printableDescription()
+    }
+}
+
+/**
+ * MindAndBodySession: A wrapper around ActivitySession for mind & body sessions
+ */
+class MindAndBodySession: ObservableObject, Identifiable {
+    let id = UUID()
+    let activitySession: ActivitySession
+    
+    var displayName: String { activitySession.displayName }
+    var workouts: [Workout] { activitySession.workouts }
+    var activityGroups: [ActivityGroup] { activitySession.activityGroups }
+    var targetMuscles: [Muscle] { activitySession.targetMuscles }
+    var targetMetrics: [FitnessMetric] { activitySession.targetMetrics }
+    
+    init(activitySession: ActivitySession) {
+        self.activitySession = activitySession
+    }
+    
+    func printableDescription() -> String {
+        return activitySession.printableDescription()
+    }
+}
+
 /**
  * WorkoutManager: Central manager for all activity sessions and workout operations
  * 
@@ -843,6 +897,15 @@ class WorkoutManager {
     
     var activitySessions: [ActivitySession] = []
     var mindAndBodySessions: [ActivitySession] = []
+    
+    // Abstraction layer properties
+    var workoutSessions: [WorkoutSession] {
+        return activitySessions.map { WorkoutSession(activitySession: $0) }
+    }
+    
+    var mindBodySessions: [MindAndBodySession] {
+        return mindAndBodySessions.map { MindAndBodySession(activitySession: $0) }
+    }
     
     private init() {}
     
@@ -1166,6 +1229,144 @@ class WorkoutManager {
             }
         } catch {
             print("Error deleting session: \(error)")
+        }
+    }
+    
+    // MARK: - Workout Matching
+    
+    /// Find matching activity session based on workout characteristics
+    func findMatchingActivitySession(for workout: HKWorkout) -> ActivitySession? {
+        let allSessions = activitySessions + mindAndBodySessions
+        
+        // First, try to match by activity type
+        let candidateSessions = allSessions.filter { session in
+            session.activityGroups.contains { group in
+                group.activity == workout.workoutActivityType
+            }
+        }
+        
+        // If no exact activity type match, return nil
+        guard !candidateSessions.isEmpty else { return nil }
+        
+        // Try to match by duration (within 10% tolerance)
+        let workoutDuration = workout.duration
+        let toleranceFactor = 0.1 // 10% tolerance
+        
+        for session in candidateSessions {
+            let estimatedDuration = estimateSessionDuration(session)
+            let durationDifference = abs(workoutDuration - estimatedDuration)
+            let tolerance = max(workoutDuration, estimatedDuration) * toleranceFactor
+            
+            if durationDifference <= tolerance {
+                return session
+            }
+        }
+        
+        // If no duration match, return the first candidate with matching activity type
+        return candidateSessions.first
+    }
+    
+    /// Estimate the total duration of an activity session
+    private func estimateSessionDuration(_ session: ActivitySession) -> TimeInterval {
+        var totalDuration: TimeInterval = 0
+        
+        for group in session.activityGroups {
+            for workout in group.workouts {
+                let workoutDuration = estimateWorkoutDuration(workout)
+                totalDuration += workoutDuration * Double(workout.iterations)
+            }
+        }
+        
+        return totalDuration
+    }
+    
+    /// Estimate the duration of a single workout
+    private func estimateWorkoutDuration(_ workout: Workout) -> TimeInterval {
+        var duration: TimeInterval = 0
+        
+        // Add exercise durations
+        for exercise in workout.exercises {
+            duration += estimateExerciseDuration(exercise)
+        }
+        
+        // Add rest period durations
+        for rest in workout.restPeriods {
+            duration += estimateRestDuration(rest)
+        }
+        
+        return duration
+    }
+    
+    /// Estimate the duration of a single exercise
+    private func estimateExerciseDuration(_ exercise: Exercise) -> TimeInterval {
+        switch exercise.goal {
+        case .time(let duration, _):
+            return duration
+        case .distance(let distance, let unit):
+            // Estimate based on movement type and distance
+            return estimateDurationForDistance(distance, unit: unit, movement: exercise.movement)
+        case .open:
+            // Estimate based on movement type
+            return estimateDurationForOpenGoal(movement: exercise.movement)
+        @unknown default:
+            return 60 // Default 1 minute
+        }
+    }
+    
+    /// Estimate the duration of a rest period
+    private func estimateRestDuration(_ rest: Rest) -> TimeInterval {
+        switch rest.goal {
+        case .time(let duration, _):
+            return duration
+        case .open:
+            return 60 // Default 1 minute for open rest
+        default:
+            return 30 // Default 30 seconds
+        }
+    }
+    
+    /// Estimate duration for distance-based exercises
+    private func estimateDurationForDistance(_ distance: Double, unit: UnitLength, movement: Movement) -> TimeInterval {
+        let distanceInMeters = Measurement(value: distance, unit: unit).converted(to: .meters).value
+        
+        switch movement {
+        case .run:
+            // Assume 6 min/km pace
+            return (distanceInMeters / 1000) * 360
+        case .cycling:
+            // Assume 20 km/h pace
+            return (distanceInMeters / 1000) * 180
+        case .sprint:
+            // Assume 4 min/km pace
+            return (distanceInMeters / 1000) * 240
+        default:
+            // Default estimation
+            return distanceInMeters / 10 // 10 meters per second
+        }
+    }
+    
+    /// Estimate duration for open goal exercises
+    private func estimateDurationForOpenGoal(movement: Movement) -> TimeInterval {
+        switch movement {
+        // Strength exercises - typically 45-60 seconds
+        case .pullUps, .chinUps, .chestDips, .tricepDips, .benchPress, .latPulldowns, .barbellBackSquat, .barbellDeadlifts:
+            return 60
+        // Cardio exercises - typically longer
+        case .cycling, .run:
+            return 300 // 5 minutes
+        case .sprint, .jumpRope:
+            return 90 // 1.5 minutes
+        // Stretching/yoga - typically 30-60 seconds
+        case .hamstringStretch, .quadricepsStretch, .calfStretch, .shoulderStretch:
+            return 30
+        case .downwardDog, .warriorOne, .warriorTwo, .trianglePose:
+            return 45
+        case .sunSalutation:
+            return 300 // 5 minutes
+        case .meditation:
+            return 600 // 10 minutes
+        default:
+            return 60 // Default 1 minute
         }
     }
 }

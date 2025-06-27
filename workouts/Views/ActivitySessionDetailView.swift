@@ -9,15 +9,13 @@ struct ActivitySessionDetailView: View {
     @Environment(\.dismiss) private var dismiss
     
     private func scheduleActivitySession() async {
-        let customWorkouts = activitySession.toWorkoutKitType()
+        // Use the pre-created workout plans from the activity session
+        let workoutPlans = activitySession.workoutPlans
         
         // Schedule the workouts with slight delays between them
         let baseSchedulingDate = Date().addingTimeInterval(60) // 1 minute from now
         
-        for (index, customWorkout) in customWorkouts.enumerated() {
-            let workoutPlanWorkout = WorkoutPlan.Workout.custom(customWorkout)
-            let plan = WorkoutPlan(workoutPlanWorkout, id: UUID())
-            
+        for (index, plan) in workoutPlans.enumerated() {
             // Schedule each workout with a 5-second delay between them
             let schedulingDate = baseSchedulingDate.addingTimeInterval(TimeInterval(index * 5))
             let dateComponents = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: schedulingDate)

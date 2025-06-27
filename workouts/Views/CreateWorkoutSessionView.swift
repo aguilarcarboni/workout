@@ -3,9 +3,9 @@ import SwiftData
 import WorkoutKit
 import HealthKit
 
-// MARK: - Create Activity Session View
+// MARK: - Create Workout Session View
 
-struct CreateActivitySessionView: View {
+struct CreateWorkoutSessionView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     let onSave: ((ActivitySession) -> Void)?
@@ -15,10 +15,24 @@ struct CreateActivitySessionView: View {
     @State private var showingActivityGroupCreator = false
     @State private var showingHelp = false
     
+    // Workout-specific activity types
+    private let workoutActivityTypes: [HKWorkoutActivityType] = [
+        .traditionalStrengthTraining,
+        .functionalStrengthTraining,
+        .crossTraining,
+        .mixedCardio,
+        .highIntensityIntervalTraining,
+        .jumpRope,
+        .cycling,
+        .running,
+        .coreTraining,
+        .other
+    ]
+    
     var body: some View {
         NavigationStack {
             Form {
-                Section("Session Details") {
+                Section("Workout Session Details") {
                     TextField("Session Name", text: $sequenceName)
                         .textInputAutocapitalization(.words)
                 }
@@ -27,14 +41,7 @@ struct CreateActivitySessionView: View {
                 
                 sessionOverviewSection
             }
-            .navigationTitle("New Activity Session")
-            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
                     HStack {
@@ -44,7 +51,7 @@ struct CreateActivitySessionView: View {
                         }
                         
                         Button("Save") {
-                            let displayName = sequenceName.isEmpty ? "Custom Session" : sequenceName
+                            let displayName = sequenceName.isEmpty ? "Custom Workout" : sequenceName
                             let session = ActivitySession(
                                 activityGroups: activityGroups,
                                 displayName: displayName
@@ -61,13 +68,13 @@ struct CreateActivitySessionView: View {
                     }
                 }
             }
-            .alert("Activity Session Help", isPresented: $showingHelp) {
+            .alert("Workout Session Help", isPresented: $showingHelp) {
                 Button("OK") { }
             } message: {
-                Text("An Activity Session is a complete workout session that groups related workouts together. It can include warmup, main training, and cooldown workouts all in one session.\n\nActivity Types determine how the workout is tracked:\n• Strength Training: Weight lifting, resistance exercises\n• Cycling: Bike workouts, stationary or outdoor\n• Running: Cardio running activities\n• Core Training: Focused abdominal and core work\n• HIIT: High-intensity interval training\n• Flexibility: Stretching and mobility work\n• Other: General fitness activities\n\nLocation determines GPS tracking - use Indoor for gym workouts, Outdoor for running/cycling outside.")
+                Text("A Workout Session is designed for strength training, cardio, and fitness exercises. It groups related workouts together for comprehensive training.\n\nWorkout Types include:\n• Strength Training: Weight lifting, resistance exercises\n• Cardio: Running, cycling, HIIT\n• Functional Training: Movement-based exercises\n• Cross Training: Mixed fitness activities\n\nFor yoga, pilates, and meditation, use the Mind & Body section instead.")
             }
             .sheet(isPresented: $showingActivityGroupCreator) {
-                CreateActivityGroupView { activityGroup in
+                CreateWorkoutActivityGroupView(availableActivityTypes: workoutActivityTypes) { activityGroup in
                     activityGroups.append(activityGroup)
                 }
             }
@@ -107,12 +114,15 @@ struct CreateActivitySessionView: View {
             Button("Add Activity Group") {
                 showingActivityGroupCreator = true
             }
+            .foregroundColor(.accentColor)
         }
     }
 
     private var sessionOverviewSection: some View {
         let allTargetMetrics = Array(Set(activityGroups.flatMap { $0.targetMetrics }))
         let allTargetMuscles = Array(Set(activityGroups.flatMap { $0.targetMuscles }))
+        let totalWorkouts = activityGroups.reduce(0) { $0 + $1.workouts.count }
+        
         return Group {
             if !activityGroups.isEmpty {
                 Section("Session Overview") {
@@ -120,40 +130,51 @@ struct CreateActivitySessionView: View {
                         Text("Total Activity Groups: \(activityGroups.count)")
                             .font(.caption)
                             .fontWeight(.semibold)
-                        Text("Total Workouts: \(activityGroups.reduce(0) { $0 + $1.workouts.count })")
+                        Text("Total Workouts: \(totalWorkouts)")
                             .font(.caption)
                             .fontWeight(.semibold)
                     }
+                    
                     if !allTargetMetrics.isEmpty {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Target Fitness Metrics:")
-                                .font(.caption)
-                                .fontWeight(.semibold)
-                            Text(allTargetMetrics.map { $0.rawValue }.joined(separator: ", "))
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                        }
+                        metricsSection(allTargetMetrics)
                     }
+                    
                     if !allTargetMuscles.isEmpty {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Target Muscles:")
-                                .font(.caption)
-                                .fontWeight(.semibold)
-                            Text(allTargetMuscles.map { $0.rawValue }.joined(separator: ", "))
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                        }
+                        musclesSection(allTargetMuscles)
                     }
                 }
             }
         }
     }
+    
+    private func metricsSection(_ metrics: [FitnessMetric]) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Target Fitness Metrics:")
+                .font(.caption)
+                .fontWeight(.semibold)
+            Text(metrics.map { $0.rawValue }.joined(separator: ", "))
+                .font(.caption2)
+                .foregroundColor(.secondary)
+        }
+    }
+    
+    private func musclesSection(_ muscles: [Muscle]) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Target Muscles:")
+                .font(.caption)
+                .fontWeight(.semibold)
+            Text(muscles.map { $0.rawValue }.joined(separator: ", "))
+                .font(.caption2)
+                .foregroundColor(.secondary)
+        }
+    }
 }
 
-// MARK: - Create Activity Group View
+// MARK: - Create Workout Activity Group View
 
-struct CreateActivityGroupView: View {
+struct CreateWorkoutActivityGroupView: View {
     @Environment(\.dismiss) private var dismiss
+    let availableActivityTypes: [HKWorkoutActivityType]
     let onSave: (ActivityGroup) -> Void
     
     @State private var activity: HKWorkoutActivityType = .traditionalStrengthTraining
@@ -167,17 +188,9 @@ struct CreateActivityGroupView: View {
             Form {
                 Section("Activity Group Details") {
                     Picker("Activity Type", selection: $activity) {
-                        Text("Strength Training").tag(HKWorkoutActivityType.traditionalStrengthTraining)
-                        Text("Functional Strength Training").tag(HKWorkoutActivityType.functionalStrengthTraining)
-                        Text("Cross Training").tag(HKWorkoutActivityType.crossTraining)
-                        Text("Mixed Cardio").tag(HKWorkoutActivityType.mixedCardio)
-                        Text("High Intensity Interval Training").tag(HKWorkoutActivityType.highIntensityIntervalTraining)
-                        Text("Jump Rope").tag(HKWorkoutActivityType.jumpRope)
-                        Text("Cycling").tag(HKWorkoutActivityType.cycling)
-                        Text("Running").tag(HKWorkoutActivityType.running)
-                        Text("Core Training").tag(HKWorkoutActivityType.coreTraining)
-                        Text("Flexibility").tag(HKWorkoutActivityType.flexibility)
-                        Text("Other").tag(HKWorkoutActivityType.other)
+                        ForEach(availableActivityTypes, id: \.self) { activityType in
+                            Text(activityType.displayName).tag(activityType)
+                        }
                     }
                     
                     Picker("Location", selection: $location) {
@@ -191,13 +204,8 @@ struct CreateActivityGroupView: View {
                     ForEach(workouts.indices, id: \.self) { index in
                         HStack {
                             VStack(alignment: .leading) {
-                                if let workoutType = workouts[index].workoutType {
-                                    Text(workoutType.rawValue)
-                                        .font(.headline)
-                                } else {
-                                    Text("Workout \(index + 1)")
-                                        .font(.headline)
-                                }
+                                Text("Workout \(index + 1)")
+                                    .font(.headline)
                                 HStack {
                                     Text("\(workouts[index].exercises.count) exercises")
                                     if workouts[index].iterations > 1 {
@@ -225,6 +233,7 @@ struct CreateActivityGroupView: View {
                     Button("Add Workout") {
                         showingWorkoutCreator = true
                     }
+                    .foregroundColor(.accentColor)
                 }
                 
                 // Show combined target info if workouts exist
@@ -257,14 +266,7 @@ struct CreateActivityGroupView: View {
                     }
                 }
             }
-            .navigationTitle("New Activity Group")
-            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
                     HStack {
@@ -289,10 +291,10 @@ struct CreateActivityGroupView: View {
             .alert("Activity Group Help", isPresented: $showingHelp) {
                 Button("OK") { }
             } message: {
-                Text("An Activity Group contains workouts that share the same activity type and location. This allows you to create activity sessions with multiple different workout types.\n\nFor example, a cardio session could have separate cycling and running activity groups, each tracked differently on your Apple Watch.\n\nEach activity group will be scheduled as a separate workout when you schedule the session.")
+                Text("An Activity Group contains workouts focused on fitness and strength training. This ensures your workout session stays focused on exercises like strength training, cardio, and functional movements.\n\nEach activity group will be scheduled as a separate workout when you schedule the session to your Apple Watch.")
             }
             .sheet(isPresented: $showingWorkoutCreator) {
-                CreateWorkoutView(title: "New Workout") { workout in
+                CreateWorkoutView(title: "New Workout", isWorkoutSession: true) { workout in
                     workouts.append(workout)
                 }
             }
@@ -305,16 +307,17 @@ struct CreateActivityGroupView: View {
 struct CreateWorkoutView: View {
     @Environment(\.dismiss) private var dismiss
     let title: String
+    let isWorkoutSession: Bool
     let onSave: (Workout) -> Void
     
     @State private var iterations = 1
-    @State private var workoutType: WorkoutType? = nil
     @State private var exercises: [Exercise] = []
     @State private var showingExerciseCreator = false
     @State private var showingHelp = false
     
-    init(title: String = "New Workout", onSave: @escaping (Workout) -> Void) {
+    init(title: String = "New Workout", isWorkoutSession: Bool = true, onSave: @escaping (Workout) -> Void) {
         self.title = title
+        self.isWorkoutSession = isWorkoutSession
         self.onSave = onSave
     }
     
@@ -322,92 +325,31 @@ struct CreateWorkoutView: View {
         NavigationStack {
             Form {
                 Section("Workout Details") {
-                    Picker("Workout Type (Optional)", selection: $workoutType) {
-                        Text("None").tag(nil as WorkoutType?)
-                        ForEach(WorkoutType.allCases, id: \.self) { type in
-                            Text(type.rawValue).tag(type as WorkoutType?)
-                        }
-                    }
-                    
                     Stepper("Sets: \(iterations)", value: $iterations, in: 1...10)
                 }
                 
                 Section("Exercises") {
                     ForEach(exercises.indices, id: \.self) { index in
-                        HStack {
-                            VStack(alignment: .leading) {
-                                Text(exercises[index].movement.rawValue)
-                                    .font(.headline)
-                                Text(goalDescription(exercises[index].goal))
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                
-                                // Show target muscles and metrics
-                                HStack {
-                                    if !exercises[index].targetMuscles.isEmpty {
-                                        Text("Muscles: \(exercises[index].targetMuscles.prefix(2).map { $0.rawValue }.joined(separator: ", "))")
-                                            .font(.caption2)
-                                            .foregroundColor(.blue)
-                                    }
-                                }
-                            }
-                            Spacer()
-                            Button("Delete", role: .destructive) {
-                                exercises.remove(at: index)
-                            }
-                            .font(.caption)
-                        }
+                        exerciseRow(at: index)
                     }
                     
                     Button("Add Exercise") {
                         showingExerciseCreator = true
                     }
+                    .foregroundColor(isWorkoutSession ? .accentColor : Color("SecondaryAccentColor"))
                 }
                 
-                // Show workout overview if exercises exist
                 if !exercises.isEmpty {
-                    let allTargetMetrics = Array(Set(exercises.flatMap { $0.targetMetrics }))
-                    let allTargetMuscles = Array(Set(exercises.flatMap { $0.targetMuscles }))
-                    
-                    Section("Workout Overview") {
-                        if !allTargetMetrics.isEmpty {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Target Fitness Metrics:")
-                                    .font(.caption)
-                                    .fontWeight(.semibold)
-                                Text(allTargetMetrics.map { $0.rawValue }.joined(separator: ", "))
-                                    .font(.caption2)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                        
-                        if !allTargetMuscles.isEmpty {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Target Muscles:")
-                                    .font(.caption)
-                                    .fontWeight(.semibold)
-                                Text(allTargetMuscles.map { $0.rawValue }.joined(separator: ", "))
-                                    .font(.caption2)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                    }
+                    overviewSection
                 }
             }
-            .navigationTitle(title)
-            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
                     HStack {
                         Button(action: { showingHelp = true }) {
                             Image(systemName: "info.circle")
-                                .foregroundColor(.accentColor)
+                                .foregroundColor(isWorkoutSession ? .accentColor : Color("SecondaryAccentColor"))
                         }
                         
                         Button("Save") {
@@ -416,7 +358,7 @@ struct CreateWorkoutView: View {
                                 exercises: exercises,
                                 restPeriods: restPeriods,
                                 iterations: iterations,
-                                workoutType: workoutType
+                                workoutType: nil
                             )
                             onSave(workout)
                             dismiss()
@@ -428,11 +370,64 @@ struct CreateWorkoutView: View {
             .alert("Workout Help", isPresented: $showingHelp) {
                 Button("OK") { }
             } message: {
-                Text("A Workout is a group of exercises performed together with optional rest periods between them.\n\nWorkout Types help categorize your training:\n• Warmup: Preparation exercises\n• Strength Workout: Resistance training\n• Endurance Workout: Cardio training\n• Stability Workout: Balance and core work\n• Cooldown: Recovery exercises\n\nSets determine how many times you'll repeat the entire workout. The fitness goals and muscle targets are automatically determined by the exercises you include.")
+                Text("A Workout is a group of exercises performed together with optional rest periods between them.\n\nSets determine how many times you'll repeat the entire workout. The fitness goals and muscle targets are automatically determined by the exercises you include.")
             }
             .sheet(isPresented: $showingExerciseCreator) {
-                CreateExerciseView { exercise in
+                CreateExerciseView(isWorkoutSession: isWorkoutSession) { exercise in
                     exercises.append(exercise)
+                }
+            }
+        }
+    }
+    
+    private func exerciseRow(at index: Int) -> some View {
+        HStack {
+            VStack(alignment: .leading) {
+                Text(exercises[index].movement.rawValue)
+                    .font(.headline)
+                Text(goalDescription(exercises[index].goal))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                // Show target muscles and metrics
+                if !exercises[index].targetMuscles.isEmpty {
+                    Text("Muscles: \(exercises[index].targetMuscles.prefix(2).map { $0.rawValue }.joined(separator: ", "))")
+                        .font(.caption2)
+                        .foregroundColor(.blue)
+                }
+            }
+            Spacer()
+            Button("Delete", role: .destructive) {
+                exercises.remove(at: index)
+            }
+            .font(.caption)
+        }
+    }
+    
+    private var overviewSection: some View {
+        let allTargetMetrics = Array(Set(exercises.flatMap { $0.targetMetrics }))
+        let allTargetMuscles = Array(Set(exercises.flatMap { $0.targetMuscles }))
+        
+        return Section("Workout Overview") {
+            if !allTargetMetrics.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Target Fitness Metrics:")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                    Text(allTargetMetrics.map { $0.rawValue }.joined(separator: ", "))
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            if !allTargetMuscles.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Target Muscles:")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                    Text(allTargetMuscles.map { $0.rawValue }.joined(separator: ", "))
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
                 }
             }
         }
@@ -458,6 +453,7 @@ struct CreateWorkoutView: View {
 
 struct CreateExerciseView: View {
     @Environment(\.dismiss) private var dismiss
+    let isWorkoutSession: Bool
     let onSave: (Exercise) -> Void
     
     @State private var movement: Movement = .pullUps
@@ -473,12 +469,63 @@ struct CreateExerciseView: View {
         case distance = "Distance"
     }
     
+    // Filter movements based on session type
+    private var availableMovements: [Movement] {
+        if isWorkoutSession {
+            // Workout movements (strength, cardio, functional)
+            return [
+                // Upper body movements
+                .pullUps, .chinUps, .chestDips, .tricepDips, .benchPress, .latPulldowns,
+                .cablePullover, .chestFlys, .bicepCurls, .hammerCurls, .preacherCurls,
+                .lateralRaises, .overheadPress, .facePulls, .tricepPulldown, .overheadPull,
+                
+                // Lower body movements
+                .barbellBackSquat, .barbellDeadlifts, .calfRaises, .adductors, .abductors,
+                
+                // Core movements
+                .lSit, .legRaise,
+                
+                // Cardio movements
+                .cycling, .run, .sprint, .jumpRope,
+                
+                // Complex movements
+                .bearCrawls, .hingeToSquat, .pikePulse, .precisionBroadJump, .ropeClimbing
+            ]
+        } else {
+            // Mind & body movements (yoga, pilates, stretching, meditation)
+            return [
+                // Stretching movements
+                .benchHipFlexorStretch, .hamstringStretch, .quadricepsStretch, .calfStretch,
+                .shoulderStretch, .neckStretch, .spinalTwist, .childsPose,
+                
+                // Yoga movements
+                .downwardDog, .warriorOne, .warriorTwo, .trianglePose, .treePose,
+                .catCowPose, .cobralPose, .planktoPose, .mountainPose, .sunSalutation,
+                
+                // Pilates movements
+                .pilatesHundred, .pilatesRollUp, .pilatesSingleLegCircle, .pilatesTeaser,
+                .pilatesPlank, .pilatesBridge,
+                
+                // Mindfulness movements
+                .meditation, .breathingExercise, .bodyScanning, .progressiveMuscleRelaxation
+            ]
+        }
+    }
+    
+    init(isWorkoutSession: Bool = true, onSave: @escaping (Exercise) -> Void) {
+        self.isWorkoutSession = isWorkoutSession
+        self.onSave = onSave
+        
+        // Set initial movement based on session type
+        _movement = State(initialValue: isWorkoutSession ? .pullUps : .downwardDog)
+    }
+    
     var body: some View {
         NavigationStack {
             Form {
                 Section("Exercise Details") {
                     Picker("Movement", selection: $movement) {
-                        ForEach(Movement.allCases, id: \.self) { movement in
+                        ForEach(availableMovements, id: \.self) { movement in
                             Text(movement.rawValue).tag(movement)
                         }
                     }
@@ -492,32 +539,14 @@ struct CreateExerciseView: View {
                     }
                     .pickerStyle(.segmented)
                     
-                    switch goalType {
-                    case .open:
-                        Text("Exercise will be open-ended")
-                            .foregroundColor(.secondary)
-                            .font(.caption)
-                    case .time:
-                        Stepper("Duration: \(Int(timeValue)) seconds", value: $timeValue, in: 5...3600, step: 5)
-                    case .distance:
-                        HStack {
-                            Stepper("Distance: \(distanceValue, specifier: "%.0f")", value: $distanceValue, in: 10...10000, step: 10)
-                            
-                            Picker("Unit", selection: $distanceUnit) {
-                                Text("meters").tag(UnitLength.meters)
-                                Text("kilometers").tag(UnitLength.kilometers)
-                                Text("miles").tag(UnitLength.miles)
-                            }
-                            .pickerStyle(.menu)
-                        }
-                    }
+                    goalInputSection
                 }
                 
                 Section("Target Muscles") {
                     ForEach(movement.targetMuscles, id: \.self) { muscle in
                         HStack {
                             Image(systemName: "figure.arms.open")
-                                .foregroundColor(.accentColor)
+                                .foregroundColor(isWorkoutSession ? .accentColor : Color("SecondaryAccentColor"))
                             Text(muscle.rawValue)
                         }
                     }
@@ -527,26 +556,19 @@ struct CreateExerciseView: View {
                     ForEach(movement.targetMetrics, id: \.self) { metric in
                         HStack {
                             Image(systemName: iconForFitnessMetric(metric))
-                                .foregroundColor(.accentColor)
+                                .foregroundColor(isWorkoutSession ? .accentColor : Color("SecondaryAccentColor"))
                             Text(metric.rawValue)
                         }
                     }
                 }
             }
-            .navigationTitle("New Exercise")
-            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
                     HStack {
                         Button(action: { showingHelp = true }) {
                             Image(systemName: "info.circle")
-                                .foregroundColor(.accentColor)
+                                .foregroundColor(isWorkoutSession ? .accentColor : Color("SecondaryAccentColor"))
                         }
                         
                         Button("Save") {
@@ -567,10 +589,37 @@ struct CreateExerciseView: View {
                     }
                 }
             }
-            .alert("Exercise Help", isPresented: $showingHelp) {
+            .alert(isWorkoutSession ? "Exercise Help" : "Movement Help", isPresented: $showingHelp) {
                 Button("OK") { }
             } message: {
-                Text("An Exercise is a specific movement or activity that targets particular muscle groups and fitness metrics.\n\nMovements are the physical actions you perform - each automatically targets specific muscles and develops particular fitness qualities.\n\nGoal Types determine how the exercise is measured:\n• Open: No specific target - go until you're done\n• Time: Perform for a set duration (e.g., 60 seconds)\n• Distance: Cover a specific distance (e.g., 1000 meters)\n\nTarget Muscles and Fitness Metrics are automatically determined by the movement you select.")
+                if isWorkoutSession {
+                    Text("An Exercise is a specific movement or activity that targets particular muscle groups and fitness metrics.\n\nWorkout movements include strength training, cardio, and functional exercises. Each automatically targets specific muscles and develops particular fitness qualities.\n\nGoal Types determine how the exercise is measured:\n• Open: No specific target - go until you're done\n• Time: Perform for a set duration (e.g., 60 seconds)\n• Distance: Cover a specific distance (e.g., 1000 meters)")
+                } else {
+                    Text("A Movement in mind & body practice focuses on mindfulness, flexibility, and wellness.\n\nMind & Body movements include yoga poses, pilates exercises, stretching, and meditation practices. Each promotes specific wellness benefits and body awareness.\n\nGoal Types determine how the movement is measured:\n• Open: Practice at your own pace\n• Time: Hold or practice for a set duration\n• Distance: Not typically used for mind & body practices")
+                }
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var goalInputSection: some View {
+        switch goalType {
+        case .open:
+            Text("Exercise will be open-ended")
+                .foregroundColor(.secondary)
+                .font(.caption)
+        case .time:
+            Stepper("Duration: \(Int(timeValue)) seconds", value: $timeValue, in: 5...3600, step: 5)
+        case .distance:
+            HStack {
+                Stepper("Distance: \(distanceValue, specifier: "%.0f")", value: $distanceValue, in: 10...10000, step: 10)
+                
+                Picker("Unit", selection: $distanceUnit) {
+                    Text("meters").tag(UnitLength.meters)
+                    Text("kilometers").tag(UnitLength.kilometers)
+                    Text("miles").tag(UnitLength.miles)
+                }
+                .pickerStyle(.menu)
             }
         }
     }
@@ -598,7 +647,7 @@ struct CreateExerciseView: View {
 }
 
 #Preview {
-    CreateActivitySessionView(onSave: nil)
+    CreateWorkoutSessionView(onSave: nil)
         .modelContainer(for: [
             PersistentActivitySession.self,
             PersistentActivityGroup.self,
@@ -606,4 +655,4 @@ struct CreateExerciseView: View {
             PersistentExercise.self,
             PersistentRest.self
         ], inMemory: true)
-}
+} 

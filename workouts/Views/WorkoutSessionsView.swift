@@ -1,12 +1,11 @@
 import SwiftUI
 import SwiftData
 import WorkoutKit
-import HealthKit
 
-struct MindAndBodyView: View {
+struct WorkoutSessionsView: View {
 
     @Environment(\.modelContext) private var modelContext
-    @State private var selectedMindAndBodySession: ActivitySession?
+    @State private var selectedWorkoutSession: ActivitySession?
     @State private var showingCreateForm = false
     @State private var showingScheduledWorkouts = false
     @State var workoutManager: WorkoutManager = .shared
@@ -14,18 +13,18 @@ struct MindAndBodyView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if workoutManager.mindAndBodySessions.isEmpty {
+                if workoutManager.activitySessions.isEmpty {
                     ContentUnavailableView(
-                        "No Mind & Body Sessions",
-                        systemImage: "figure.mind.and.body",
-                        description: Text("Create a mind & body session to see it here")
+                        "No Workout Sessions",
+                        systemImage: "figure.run",
+                        description: Text("Create a workout session to see it here")
                     )
                 } else {
                     VStack {
                         List {
-                            ForEach(workoutManager.mindAndBodySessions, id: \.id) { session in
-                                MindAndBodySessionRow(session: session) {
-                                    selectedMindAndBodySession = session
+                            ForEach(workoutManager.activitySessions, id: \.id) { session in
+                                WorkoutSessionRow(session: session) {
+                                    selectedWorkoutSession = session
                                 }
                                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                     Button("Delete", role: .destructive) {
@@ -35,20 +34,21 @@ struct MindAndBodyView: View {
                             }
                         }
                     }
-                    .sheet(item: $selectedMindAndBodySession) { session in
+                    .sheet(item: $selectedWorkoutSession) { session in
                         ActivitySessionDetailView(activitySession: session)
                     }
                     .sheet(isPresented: $showingCreateForm) {
-                        CreateActivitySessionView { session in
+                        CreateWorkoutSessionView { session in
+                            // Refresh workouts after adding new session
                             workoutManager.loadSessions(from: modelContext)
                         }
                     }
                     .sheet(isPresented: $showingScheduledWorkouts) {
-                        ScheduledWorkoutsView()
+                        ScheduledActivitySessionsView()
                     }
                 }
             }
-            .navigationTitle("Mind & Body")
+            .navigationTitle("Workout Sessions")
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button {
@@ -73,7 +73,7 @@ struct MindAndBodyView: View {
     }
 }
 
-struct MindAndBodySessionRow: View {
+struct WorkoutSessionRow: View {
     let session: ActivitySession
     let onTap: () -> Void
     
@@ -90,7 +90,7 @@ struct MindAndBodySessionRow: View {
                             HStack(spacing: 4) {
                                 Image(systemName: session.activity.icon)
                                     .font(.caption)
-                                    .foregroundStyle(Color("SecondaryAccentColor"))
+                                    .foregroundStyle(Color("AccentColor"))
                                 Text(session.activity.displayName)
                                     .font(.caption)
                                     .foregroundColor(.secondary)
@@ -99,7 +99,7 @@ struct MindAndBodySessionRow: View {
                             HStack(spacing: 4) {
                                 Image(systemName: "rectangle.3.offgrid")
                                     .font(.caption)
-                                    .foregroundStyle(Color("SecondaryAccentColor"))
+                                    .foregroundStyle(Color("AccentColor"))
                                 Text("\(session.activityGroups.count) activity types")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
@@ -136,7 +136,7 @@ struct MindAndBodySessionRow: View {
                     HStack {
                         Image(systemName: "target")
                             .font(.caption2)
-                            .foregroundStyle(Color("SecondaryAccentColor"))
+                            .foregroundStyle(Color("AccentColor"))
                         Text(session.targetMetrics.prefix(3).map { $0.rawValue }.joined(separator: ", "))
                             .font(.caption2)
                             .foregroundColor(.secondary)
@@ -156,14 +156,13 @@ struct MindAndBodySessionRow: View {
     }
 }
 
-
-
-
-
-
-
-
-
 #Preview {
-    MindAndBodyView()
-}
+    WorkoutSessionsView()
+        .modelContainer(for: [
+            PersistentActivitySession.self,
+            PersistentActivityGroup.self,
+            PersistentWorkout.self,
+            PersistentExercise.self,
+            PersistentRest.self
+        ], inMemory: true)
+} 

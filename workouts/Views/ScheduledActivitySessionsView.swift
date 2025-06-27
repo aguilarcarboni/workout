@@ -1,7 +1,7 @@
 import SwiftUI
 import WorkoutKit
 
-struct ScheduledWorkoutsView: View {
+struct ScheduledActivitySessionsView: View {
     
     @State private var scheduledWorkouts: [ScheduledWorkoutPlan] = []
     @State private var workoutScheduler: WorkoutScheduler = .shared
@@ -14,9 +14,9 @@ struct ScheduledWorkoutsView: View {
                     ProgressView()
                 } else if scheduledWorkouts.isEmpty {
                     ContentUnavailableView(
-                        "No Scheduled Workouts",
+                        "No Activity Sessions Scheduled",
                         systemImage: "figure.run",
-                        description: Text("Schedule a workout to see it here")
+                        description: Text("Schedule an activity session to see it here")
                     )
                 } else {
                     List {
@@ -45,7 +45,7 @@ struct ScheduledWorkoutsView: View {
                     }
                 }
             }
-            .navigationTitle("Scheduled Workouts")
+            .navigationTitle("Activity Sessions")
             .task {
                 await loadScheduledWorkouts()
             }

@@ -77,6 +77,7 @@ struct workoutsApp: App {
         
         let workoutScheduler = WorkoutScheduler.shared
         let notificationManager = NotificationManager.shared
+        let healthManager = HealthManager.shared
         
         // Authenticate WorkoutScheduler (WorkoutKit)
         let workoutAuthStatus = await workoutScheduler.requestAuthorization()
@@ -85,6 +86,10 @@ struct workoutsApp: App {
         // Authenticate NotificationManager (UserNotifications)
         let notificationAuthStatus = await notificationManager.requestAuthorization()
         print("   NotificationManager authorization: \(notificationAuthStatus)")
+        
+        // Authenticate HealthManager (HealthKit)
+        healthManager.requestAuthorization()
+        print("   HealthManager authorization requested")
     }
     
     /// Step 2: Remove all scheduled workouts that are before today

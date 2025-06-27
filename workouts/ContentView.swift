@@ -10,18 +10,24 @@ struct ContentView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            ActivitySessionsView()
+            WorkoutSessionsView()
             .tabItem {
                 Label("Workout", systemImage: "figure.strengthtraining.traditional")
             }
             .tag(0)
 
-            MindAndBodyView()
+            MindAndBodySessionsView()
             .tabItem {
-                Label("Mind and Body", systemImage: "figure.mind.and.body")
+                Label("Meditate", systemImage: "figure.mind.and.body")
             }
             .tag(1)
+            
+            WorkoutHistoryView()
+            .tabItem {
+                Label("History", systemImage: "clock.arrow.circlepath")
+            }
+            .tag(2)
         }
-        .accentColor(selectedTab == 0 ? Color.accentColor : Color("SecondaryAccentColor"))
+        .accentColor(selectedTab == 0 || selectedTab == 2 ? Color.accentColor : Color("SecondaryAccentColor"))
     }
 }
