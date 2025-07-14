@@ -66,36 +66,6 @@ struct WorkoutRowView: View {
             Text(workout.startDate, style: .time)
                 .font(.caption2)
                 .foregroundColor(.secondary)
-
-            Spacer()
-            
-            HStack {
-                Label(formatDuration(workout.duration), systemImage: "clock")
-                    .font(.caption)
-                    .foregroundColor(.primary)
-                
-                if #available(iOS 18.0, *) {
-                    if let calories = workout.statistics(for: HKQuantityType(.activeEnergyBurned))?.sumQuantity()?.doubleValue(for: .kilocalorie()) {
-                        Label("\(Int(calories)) kcal", systemImage: "flame")
-                            .font(.caption)
-                            .foregroundColor(.primary)
-                    }
-                } else {
-                    if let calories = workout.totalEnergyBurned?.doubleValue(for: .kilocalorie()) {
-                        Label("\(Int(calories)) kcal", systemImage: "flame")
-                            .font(.caption)
-                            .foregroundColor(.primary)
-                    }
-                }
-                
-                if let distance = workout.totalDistance?.doubleValue(for: .meter()) {
-                    Label(formatDistance(distance), systemImage: "location")
-                        .font(.caption)
-                        .foregroundColor(.primary)
-                }
-                
-                Spacer()
-            }
         }
         .padding(.vertical, 2)
     }

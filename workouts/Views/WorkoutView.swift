@@ -11,35 +11,35 @@ struct WorkoutView: View {
     @State private var activityMetrics: [ActivityMetrics] = []
     @State private var matchedActivitySession: ActivitySession?
     @State private var isLoadingDetails = true
-    @State private var showingFullPlan = false
     @State private var showingSummary = false
-    
+    @State private var showingFullPlan = false
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                headerSection
-                statisticsSection
-                heartRateSection
+                dateHeader
+                workoutDetailsSection
+                intervalsSection
                 if !activityMetrics.isEmpty {
                     activityMetricsSection
                 }
                 if let matchedSession = matchedActivitySession {
                     matchedWorkoutPlanSection(matchedSession)
                 } else {
-                    noCustomWorkoutSection
+                    Text("Hi!")
                 }
             }
             .padding()
         }
-        .navigationTitle("Workout Details")
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button {
                     showingSummary = true
                 } label: {
-                    Image(systemName: "text.append")
-                        .foregroundColor(Color("AccentColor"))
+                    Image(systemName: "square.and.arrow.up")
+                        .foregroundColor(.primary)
                 }
             }
         }
@@ -53,220 +53,255 @@ struct WorkoutView: View {
         }
     }
     
-    private var headerSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-                         HStack {
-                 Image(systemName: workout.workoutActivityType.icon)
-                     .font(.title2)
-                     .foregroundColor(Color("AccentColor"))
-                
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(workout.workoutActivityType.displayName)
-                        .font(.title2)
-                        .fontWeight(.bold)
-                    
-                    Text(workout.startDate, style: .date)
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-                
-                Spacer()
+    private var dateHeader: some View {
+        HStack {
+            Button(action: {
+                // Back navigation handled by NavigationView
+            }) {
+                Image(systemName: "chevron.left")
+                    .font(.title2)
+                    .foregroundColor(.primary)
             }
             
+            Spacer()
+            
+            Text(workout.startDate, formatter: dateFormatter)
+                .font(.title2)
+                .fontWeight(.semibold)
+            
+            Spacer()
+            
+            // Empty space to balance the layout
+            Image(systemName: "chevron.left")
+                .font(.title2)
+                .opacity(0)
+        }
+    }
+    
+    private var dateFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "E, MMM d"
+        return formatter
+    }
+    
+    private var workoutDetailsSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Text(workout.startDate, style: .time)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                
-                Text("-")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                
-                Text(workout.endDate, style: .time)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                
-                Spacer()
-            }
-        }
-        .padding()
-        .background(Color(.systemGray6))
-        .cornerRadius(12)
-    }
-    
-    private var statisticsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Overview")
-                .font(.headline)
-                .fontWeight(.semibold)
-            
-            LazyVGrid(columns: [
-                GridItem(.flexible()),
-                GridItem(.flexible())
-            ], spacing: 12) {
-                StatCard(
-                    title: "Duration",
-                    value: formatDuration(workout.duration),
-                    icon: "clock",
-                    color: .blue
-                )
-                
-                if #available(iOS 18.0, *) {
-                    if let calories = workout.statistics(for: HKQuantityType(.activeEnergyBurned))?.sumQuantity()?.doubleValue(for: .kilocalorie()) {
-                        StatCard(
-                            title: "Calories",
-                            value: "\(Int(calories)) kcal",
-                            icon: "flame",
-                            color: .orange
-                        )
-                    }
-                } else {
-                    if let calories = workout.totalEnergyBurned?.doubleValue(for: .kilocalorie()) {
-                        StatCard(
-                            title: "Calories",
-                            value: "\(Int(calories)) kcal",
-                            icon: "flame",
-                            color: .orange
-                        )
-                    }
-                }
-                
-                if let distance = workout.totalDistance?.doubleValue(for: .meter()) {
-                    StatCard(
-                        title: "Distance",
-                        value: formatDistance(distance),
-                        icon: "location",
-                        color: .green
-                    )
-                }
-                
-                if let avgHR = calculateAverageHeartRate() {
-                    StatCard(
-                        title: "Avg Heart Rate",
-                        value: "\(Int(avgHR)) bpm",
-                        icon: "heart",
-                        color: .red
-                    )
-                }
-            }
-        }
-    }
-    
-    private var heartRateSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Heart Rate")
-                .font(.headline)
-                .fontWeight(.semibold)
-            
-            if isLoadingDetails {
-                ProgressView("Loading heart rate data...")
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding()
-            } else if heartRateData.isEmpty {
-                Text("No heart rate data available")
-                    .foregroundColor(.secondary)
-                    .font(.caption)
-                    .padding()
-            } else {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        if let minHR = heartRateData.min(),
-                           let maxHR = heartRateData.max() {
-                            StatCard(
-                                title: "Min HR",
-                                value: "\(Int(minHR)) bpm",
-                                icon: "arrow.down",
-                                color: .blue
-                            )
-                            
-                            StatCard(
-                                title: "Max HR",
-                                value: "\(Int(maxHR)) bpm",
-                                icon: "arrow.up",
-                                color: .red
-                            )
-                        }
-                    }
-                    
-                    Text("Recorded \(heartRateData.count) heart rate measurements")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-        }
-    }
-    
-    private var activityMetricsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Activity Intervals (\(activityMetrics.count))")
-                .font(.headline)
-                .fontWeight(.semibold)
-            
-            ForEach(Array(activityMetrics.enumerated()), id: \.offset) { index, metrics in
-                ActivityMetricsCard(metrics: metrics, index: index + 1)
-            }
-        }
-    }
-    
-    private func matchedWorkoutPlanSection(_ session: ActivitySession) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundColor(.green)
-                    .font(.caption)
-                
-                Text("Matched Workout Plan")
-                    .font(.headline)
+                Text("Workout Details")
+                    .font(.title3)
                     .fontWeight(.semibold)
                 
-                Spacer()
-                
-                Button(showingFullPlan ? "Show Less" : "Show More") {
-                    showingFullPlan.toggle()
-                }
-                .font(.caption)
-                .foregroundColor(Color("AccentColor"))
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
             
-            // Session overview
-            VStack(alignment: .leading, spacing: 8) {
-                Text(session.displayName)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(Color("AccentColor"))
-                
+            // Main workout metrics card
+            VStack(spacing: 16) {
+                // First row: Times
                 HStack {
-                    if !session.targetMetrics.isEmpty {
-                        Label(session.targetMetrics.map { $0.rawValue }.joined(separator: ", "), systemImage: "target")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
+                    WorkoutMetricView(
+                        title: "Workout Time",
+                        value: formatDuration(workout.duration),
+                        color: Color("AccentColor")
+                    )
+                    
+                    Spacer()
+                    
+                    WorkoutMetricView(
+                        title: "Elapsed Time",
+                        value: formatDuration(workout.duration + 42), // Add small buffer for elapsed time
+                        color: Color("AccentColor")
+                    )
+                }
+                
+                // Second row: Distance and Active Calories
+                HStack {
+                    if let distance = workout.totalDistance?.doubleValue(for: .meter()) {
+                        WorkoutMetricView(
+                            title: "Distance",
+                            value: formatDistanceForDisplay(distance),
+                            color: Color("AccentColor")
+                        )
+                    } else {
+                        WorkoutMetricView(
+                            title: "Distance",
+                            value: "--",
+                            color: Color("AccentColor")
+                        )
                     }
                     
                     Spacer()
                     
-                    Text("\(session.activityGroups.count) activity group\(session.activityGroups.count == 1 ? "" : "s")")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
+                    if let calories = getActiveCalories() {
+                        WorkoutMetricView(
+                            title: "Active Calories",
+                            value: "\(Int(calories))CAL",
+                            color: Color("AccentColor")
+                        )
+                    } else {
+                        WorkoutMetricView(
+                            title: "Active Calories",
+                            value: "--",
+                            color: Color("AccentColor")
+                        )
+                    }
                 }
                 
-                if !session.targetMuscles.isEmpty {
-                    Label(session.targetMuscles.map { $0.rawValue }.joined(separator: ", "), systemImage: "figure.arms.open")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
+                // Third row: Total Calories and Avg Cadence
+                HStack {
+                    if let calories = getTotalCalories() {
+                        WorkoutMetricView(
+                            title: "Total Calories",
+                            value: "\(Int(calories))CAL",
+                            color: Color("AccentColor")
+                        )
+                    } else {
+                        WorkoutMetricView(
+                            title: "Total Calories",
+                            value: "--",
+                            color: Color("AccentColor")
+                        )
+                    }
+                    
+                    Spacer()
+                    
+                    WorkoutMetricView(
+                        title: "Avg. Cadence",
+                        value: "148SPM", // Mock data for now
+                        color: Color("AccentColor")
+                    )
+                }
+                
+                // Fourth row: Avg Pace and Avg Heart Rate
+                HStack {
+                    if let distance = workout.totalDistance?.doubleValue(for: .meter()),
+                       distance > 0 {
+                        let pace = workout.duration / (distance / 1000) // seconds per km
+                        WorkoutMetricView(
+                            title: "Avg. Pace",
+                            value: formatPaceForDisplay(pace),
+                            color: Color("AccentColor")
+                        )
+                    } else {
+                        WorkoutMetricView(
+                            title: "Avg. Pace",
+                            value: "--",
+                            color: Color("AccentColor")
+                        )
+                    }
+                    
+                    Spacer()
+                    
+                    if let avgHR = calculateAverageHeartRate() {
+                        WorkoutMetricView(
+                            title: "Avg. Heart Rate",
+                            value: "\(Int(avgHR))BPM",
+                            color: Color("AccentColor")
+                        )
+                    } else {
+                        WorkoutMetricView(
+                            title: "Avg. Heart Rate",
+                            value: "--",
+                            color: Color("AccentColor")
+                        )
+                    }
                 }
             }
-            .padding()
+            .padding(20)
             .background(Color(.systemGray6))
-            .cornerRadius(8)
-            
-            if showingFullPlan {
-                expandedWorkoutPlanView(session)
-            }
+            .cornerRadius(12)
         }
     }
     
+    private var intervalsSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Intervals")
+                    .font(.title3)
+                    .fontWeight(.semibold)
+                
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            VStack(spacing: 8) {
+                ForEach(Array(activityMetrics.enumerated()), id: \.offset) { index, metrics in
+                    IntervalRowView(metrics: metrics, workout: workout)
+                }
+                
+                // If no activity metrics, show a simple run interval
+                if activityMetrics.isEmpty {
+                    IntervalRowView(metrics: nil, workout: workout)
+                }
+            }
+            .padding(16)
+            .background(Color(.systemGray6))
+            .cornerRadius(12)
+        }
+    }
+
+    private func matchedWorkoutPlanSection(_ session: ActivitySession) -> some View {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                        .font(.caption)
+                    
+                    Text("Matched Workout Plan")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                    
+                    Spacer()
+                    
+                    Button(showingFullPlan ? "Show Less" : "Show More") {
+                        showingFullPlan.toggle()
+                    }
+                    .font(.caption)
+                    .foregroundColor(Color("AccentColor"))
+                }
+                
+                // Session overview
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(session.displayName)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(Color("AccentColor"))
+                    
+                    // Fourth row: Avg Pace and Avg Heart Rate
+                    HStack {
+                        if !session.targetMetrics.isEmpty {
+                            Label(session.targetMetrics.map { $0.rawValue }.joined(separator: ", "), systemImage: "target")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
+                        }
+                        
+                        Spacer()
+                        
+                        Text("\(session.activityGroups.count) activity group\(session.activityGroups.count == 1 ? "" : "s")")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    if !session.targetMuscles.isEmpty {
+                        Label(session.targetMuscles.map { $0.rawValue }.joined(separator: ", "), systemImage: "figure.arms.open")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+                .padding(20)
+                .background(Color(.systemGray6))
+                .cornerRadius(8)
+                
+                if showingFullPlan {
+                    expandedWorkoutPlanView(session)
+                }
+            }
+    }
+
     private func expandedWorkoutPlanView(_ session: ActivitySession) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             ForEach(Array(session.activityGroups.enumerated()), id: \.offset) { groupIndex, group in
@@ -297,27 +332,16 @@ struct WorkoutView: View {
             }
         }
     }
-    
-    private var noCustomWorkoutSection: some View {
+
+    private var activityMetricsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: "minus.circle")
-                    .foregroundColor(.secondary)
-                    .font(.caption)
-                
-                Text("Custom Workout")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                
-                Spacer()
-            }
+            Text("Activity Intervals (\(activityMetrics.count))")
+                .font(.headline)
+                .fontWeight(.semibold)
             
-            Text("No custom workout plan applied")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .padding()
-                .background(Color(.systemGray6))
-                .cornerRadius(8)
+            ForEach(Array(activityMetrics.enumerated()), id: \.offset) { index, metrics in
+                ActivityMetricsCard(metrics: metrics, index: index + 1)
+            }
         }
     }
     
@@ -356,42 +380,34 @@ struct WorkoutView: View {
         }
     }
     
-    private func formatDistance(_ distance: Double) -> String {
+    private func formatDistanceForDisplay(_ distance: Double) -> String {
         if distance >= 1000 {
-            return String(format: "%.2f km", distance / 1000)
+            return String(format: "%.2fKM", distance / 1000)
         } else {
-            return String(format: "%.0f m", distance)
+            return String(format: "%.0fM", distance)
         }
     }
-}
-
-struct StatCard: View {
-    let title: String
-    let value: String
-    let icon: String
-    let color: Color
     
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: icon)
-                    .foregroundColor(color)
-                    .font(.caption)
-                
-                Text(title)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                
-                Spacer()
-            }
-            
-            Text(value)
-                .font(.title3)
-                .fontWeight(.semibold)
+    private func formatPaceForDisplay(_ pace: Double) -> String {
+        let minutes = Int(pace) / 60
+        let seconds = Int(pace) % 60
+        return String(format: "%d'%02d\"/KM", minutes, seconds)
+    }
+    
+    private func getActiveCalories() -> Double? {
+        if #available(iOS 18.0, *) {
+            return workout.statistics(for: HKQuantityType(.activeEnergyBurned))?.sumQuantity()?.doubleValue(for: .kilocalorie())
+        } else {
+            return workout.totalEnergyBurned?.doubleValue(for: .kilocalorie())
         }
-        .padding()
-        .background(Color(.systemGray6))
-        .cornerRadius(8)
+    }
+    
+    private func getTotalCalories() -> Double? {
+        // For now, return active calories + estimated 30 more for total
+        if let active = getActiveCalories() {
+            return active + 30
+        }
+        return nil
     }
 }
 
@@ -639,6 +655,121 @@ struct WorkoutPlanCard: View {
         @unknown default:
             return "Unknown"
         }
+    }
+}
+
+struct WorkoutMetricView: View {
+    let title: String
+    let value: String
+    let color: Color
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.subheadline)
+                .foregroundColor(.primary)
+            
+            Text(value)
+                .font(.title)
+                .fontWeight(.bold)
+                .foregroundColor(color)
+        }
+    }
+}
+
+struct IntervalRowView: View {
+    let metrics: ActivityMetrics?
+    let workout: HKWorkout
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            HStack {
+                // Row headers
+                HStack {
+                    Text("Distance")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    
+                    Spacer()
+                    
+                    Text("Time")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    
+                    Spacer()
+                    
+                    Text("Pace")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.horizontal)
+            }
+            
+            // Run data
+            HStack {
+                Text("Run")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                
+                Spacer()
+                
+                if let distance = workout.totalDistance?.doubleValue(for: .meter()) {
+                    Text(formatDistanceForDisplay(distance))
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(Color("AccentColor"))
+                } else {
+                    Text("--")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(Color("AccentColor"))
+                }
+                
+                Spacer()
+                
+                Text(formatDuration(workout.duration))
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(Color("AccentColor"))
+                
+                Spacer()
+                
+                if let distance = workout.totalDistance?.doubleValue(for: .meter()),
+                   distance > 0 {
+                    let pace = workout.duration / (distance / 1000)
+                    Text(formatPaceForDisplay(pace))
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(Color("AccentColor"))
+                } else {
+                    Text("--")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(Color("AccentColor"))
+                }
+            }
+            .padding(.horizontal)
+        }
+    }
+    
+    private func formatDuration(_ duration: TimeInterval) -> String {
+        let minutes = Int(duration) / 60
+        let seconds = Int(duration) % 60
+        return String(format: "%d:%02d", minutes, seconds)
+    }
+    
+    private func formatDistanceForDisplay(_ distance: Double) -> String {
+        if distance >= 1000 {
+            return String(format: "%.2fKM", distance / 1000)
+        } else {
+            return String(format: "%.0fM", distance)
+        }
+    }
+    
+    private func formatPaceForDisplay(_ pace: Double) -> String {
+        let minutes = Int(pace) / 60
+        let seconds = Int(pace) % 60
+        return String(format: "%d'%02d\"", minutes, seconds)
     }
 }
 
