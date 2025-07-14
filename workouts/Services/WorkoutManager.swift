@@ -1179,8 +1179,18 @@ class WorkoutManager {
     }
 
     private func createLowerBodyStrengthActivitySession() -> ActivitySession {
-        let openRest = Rest()
+        
         let timedRest = Rest(goal: .time(30, .seconds))
+        
+        // Cycling warmup and main workout
+        let cyclingWarmup = Exercise(movement: .cycling, goal: .time(300, .seconds), alert: .heartRate(zone: 2))
+        let cyclingWarmupWorkout = Workout(
+            exercises: [cyclingWarmup],
+            restPeriods: [],
+            workoutType: .warmup
+        )
+        
+        let openRest = Rest()
         
         let adductors = Exercise(movement: .adductors, goal: .open)
         let abductors = Exercise(movement: .abductors, goal: .open)
@@ -1217,6 +1227,7 @@ class WorkoutManager {
         
         return ActivitySession(
             activityGroups: [
+                ActivityGroup(activity: .cycling, location: .indoor, workouts: [cyclingWarmupWorkout]),
                 ActivityGroup(activity: .traditionalStrengthTraining, location: .indoor, workouts: [hipWarmupWorkout, squatWorkout, deadliftWorkout, stabilityWorkout])
             ],
             displayName: "Lower Body"
@@ -1232,13 +1243,6 @@ class WorkoutManager {
             exercises: [cyclingWarmup],
             restPeriods: [],
             workoutType: .warmup
-        )
-        
-        let cycling = Exercise(movement: .cycling, goal: .time(900, .seconds), alert: .heartRate(zone: 3))
-        let cyclingWorkout = Workout(
-            exercises: [cycling],
-            restPeriods: [],
-            workoutType: .aerobicEnduranceWorkout
         )
         
         // Running main workout
@@ -1260,7 +1264,7 @@ class WorkoutManager {
         
         return ActivitySession(
             activityGroups: [
-                ActivityGroup(activity: .cycling, location: .indoor, workouts: [cyclingWarmupWorkout, cyclingWorkout]),
+                ActivityGroup(activity: .cycling, location: .indoor, workouts: [cyclingWarmupWorkout]),
                 ActivityGroup(activity: .running, location: .indoor, workouts: [runningWorkout]),
                 ActivityGroup(activity: .jumpRope, location: .indoor, workouts: [plyometricsWorkout])
             ],
