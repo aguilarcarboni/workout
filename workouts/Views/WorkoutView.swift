@@ -9,6 +9,7 @@ struct WorkoutView: View {
     private let workoutManager = WorkoutManager.shared
     @State private var heartRateData: [Double] = []
     @State private var activityMetrics: [ActivityMetrics] = []
+    @State private var intervalMappings: [IntervalMapping] = []
     @State private var matchedActivitySession: ActivitySession?
     @State private var isLoadingDetails = true
     @State private var showingSummary = false
@@ -19,19 +20,13 @@ struct WorkoutView: View {
             VStack(alignment: .leading, spacing: 20) {
                 dateHeader
                 workoutDetailsSection
-                intervalsSection
-                if !activityMetrics.isEmpty {
+                if !activityMetrics.isEmpty && !intervalMappings.isEmpty {
                     activityMetricsSection
-                }
-                if let matchedSession = matchedActivitySession {
-                    matchedWorkoutPlanSection(matchedSession)
-                } else {
-                    Text("No matched workout plan found.")
                 }
             }
             .padding()
         }
-        .navigationTitle("")
+        .navigationTitle(workout.workoutActivityType.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
@@ -55,26 +50,9 @@ struct WorkoutView: View {
     
     private var dateHeader: some View {
         HStack {
-            Button(action: {
-                // Back navigation handled by NavigationView
-            }) {
-                Image(systemName: "chevron.left")
-                    .font(.title2)
-                    .foregroundColor(.primary)
-            }
-            
-            Spacer()
-            
             Text(workout.startDate, formatter: dateFormatter)
-                .font(.title2)
+                .font(.largeTitle)
                 .fontWeight(.semibold)
-            
-            Spacer()
-            
-            // Empty space to balance the layout
-            Image(systemName: "chevron.left")
-                .font(.title2)
-                .opacity(0)
         }
     }
     
@@ -88,124 +66,18 @@ struct WorkoutView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Text("Workout Details")
-                    .font(.title3)
+                    .font(.headline)
                     .fontWeight(.semibold)
-                
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
             }
             
-            // Main workout metrics card
-            VStack(spacing: 16) {
-                // First row: Times
-                HStack {
+            // Main workout metrics grid – two columns that automatically fill
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
+                ForEach(Array(workoutMetrics.enumerated()), id: \.offset) { _, metric in
                     WorkoutMetricView(
-                        title: "Workout Time",
-                        value: formatDuration(workout.duration),
+                        title: metric.title,
+                        value: metric.value,
                         color: Color("AccentColor")
                     )
-                    
-                    Spacer()
-                    
-                    WorkoutMetricView(
-                        title: "Elapsed Time",
-                        value: formatDuration(workout.duration + 42), // Add small buffer for elapsed time
-                        color: Color("AccentColor")
-                    )
-                }
-                
-                // Second row: Distance and Active Calories
-                HStack {
-                    if let distance = workout.totalDistance?.doubleValue(for: .meter()) {
-                        WorkoutMetricView(
-                            title: "Distance",
-                            value: formatDistanceForDisplay(distance),
-                            color: Color("AccentColor")
-                        )
-                    } else {
-                        WorkoutMetricView(
-                            title: "Distance",
-                            value: "--",
-                            color: Color("AccentColor")
-                        )
-                    }
-                    
-                    Spacer()
-                    
-                    if let calories = getActiveCalories() {
-                        WorkoutMetricView(
-                            title: "Active Calories",
-                            value: "\(Int(calories))CAL",
-                            color: Color("AccentColor")
-                        )
-                    } else {
-                        WorkoutMetricView(
-                            title: "Active Calories",
-                            value: "--",
-                            color: Color("AccentColor")
-                        )
-                    }
-                }
-                
-                // Third row: Total Calories and Avg Cadence
-                HStack {
-                    if let calories = getTotalCalories() {
-                        WorkoutMetricView(
-                            title: "Total Calories",
-                            value: "\(Int(calories))CAL",
-                            color: Color("AccentColor")
-                        )
-                    } else {
-                        WorkoutMetricView(
-                            title: "Total Calories",
-                            value: "--",
-                            color: Color("AccentColor")
-                        )
-                    }
-                    
-                    Spacer()
-                    
-                    WorkoutMetricView(
-                        title: "Avg. Cadence",
-                        value: "148SPM", // Mock data for now
-                        color: Color("AccentColor")
-                    )
-                }
-                
-                // Fourth row: Avg Pace and Avg Heart Rate
-                HStack {
-                    if let distance = workout.totalDistance?.doubleValue(for: .meter()),
-                       distance > 0 {
-                        let pace = workout.duration / (distance / 1000) // seconds per km
-                        WorkoutMetricView(
-                            title: "Avg. Pace",
-                            value: formatPaceForDisplay(pace),
-                            color: Color("AccentColor")
-                        )
-                    } else {
-                        WorkoutMetricView(
-                            title: "Avg. Pace",
-                            value: "--",
-                            color: Color("AccentColor")
-                        )
-                    }
-                    
-                    Spacer()
-                    
-                    if let avgHR = calculateAverageHeartRate() {
-                        WorkoutMetricView(
-                            title: "Avg. Heart Rate",
-                            value: "\(Int(avgHR))BPM",
-                            color: Color("AccentColor")
-                        )
-                    } else {
-                        WorkoutMetricView(
-                            title: "Avg. Heart Rate",
-                            value: "--",
-                            color: Color("AccentColor")
-                        )
-                    }
                 }
             }
             .padding(20)
@@ -213,134 +85,102 @@ struct WorkoutView: View {
             .cornerRadius(12)
         }
     }
-    
-    private var intervalsSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Text("Intervals")
-                    .font(.title3)
-                    .fontWeight(.semibold)
-                
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            
-            VStack(spacing: 8) {
-                ForEach(Array(activityMetrics.enumerated()), id: \.offset) { index, metrics in
-                    IntervalRowView(metrics: metrics, workout: workout)
-                }
-                
-                // If no activity metrics, show a simple run interval
-                if activityMetrics.isEmpty {
-                    IntervalRowView(metrics: nil, workout: workout)
-                }
-            }
-            .padding(16)
-            .background(Color(.systemGray6))
-            .cornerRadius(12)
-        }
-    }
-
-    private func matchedWorkoutPlanSection(_ session: ActivitySession) -> some View {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.green)
-                        .font(.caption)
-                    
-                    Text("Matched Workout Plan")
-                        .font(.headline)
-                        .fontWeight(.semibold)
-                    
-                    Spacer()
-                    
-                    Button(showingFullPlan ? "Show Less" : "Show More") {
-                        showingFullPlan.toggle()
-                    }
-                    .font(.caption)
-                    .foregroundColor(Color("AccentColor"))
-                }
-                
-                // Session overview
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(session.displayName)
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(Color("AccentColor"))
-                    
-                    // Fourth row: Avg Pace and Avg Heart Rate
-                    HStack {
-                        if !session.targetMetrics.isEmpty {
-                            Label(session.targetMetrics.map { $0.rawValue }.joined(separator: ", "), systemImage: "target")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                                .lineLimit(1)
-                        }
-                        
-                        Spacer()
-                        
-                        Text("\(session.activityGroups.count) activity group\(session.activityGroups.count == 1 ? "" : "s")")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    if !session.targetMuscles.isEmpty {
-                        Label(session.targetMuscles.map { $0.rawValue }.joined(separator: ", "), systemImage: "figure.arms.open")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
-                    }
-                }
-                .padding(20)
-                .background(Color(.systemGray6))
-                .cornerRadius(8)
-                
-                if showingFullPlan {
-                    expandedWorkoutPlanView(session)
-                }
-            }
-    }
-
-    private func expandedWorkoutPlanView(_ session: ActivitySession) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            ForEach(Array(session.activityGroups.enumerated()), id: \.offset) { groupIndex, group in
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Image(systemName: group.activity.icon)
-                            .font(.caption)
-                            .foregroundColor(Color("AccentColor"))
-                        
-                        Text(group.activity.displayName)
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                        
-                        Text("(\(group.location.displayName))")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                        
-                        Spacer()
-                    }
-                    
-                    ForEach(Array(group.workouts.enumerated()), id: \.offset) { workoutIndex, workout in
-                        WorkoutPlanCard(workout: workout, index: workoutIndex + 1)
-                    }
-                }
-                .padding()
-                .background(Color(.systemGray6))
-                .cornerRadius(8)
-            }
-        }
-    }
 
     private var activityMetricsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Activity Intervals (\(activityMetrics.count))")
+            Text("Activity Intervals (\(intervalMappings.count))")
                 .font(.headline)
                 .fontWeight(.semibold)
-            
-            ForEach(Array(activityMetrics.enumerated()), id: \.offset) { index, metrics in
-                ActivityMetricsCard(metrics: metrics, index: index + 1)
+
+            ForEach(Array(intervalMappings.enumerated()), id: \.offset) { index, mapping in
+                IntervalMappingCard(mapping: mapping, index: index + 1)
+            }
+        }
+    }
+
+    private struct IntervalMappingCard: View {
+        let mapping: IntervalMapping
+        let index: Int
+
+        var body: some View {
+            VStack(alignment: .leading, spacing: 8) {
+                // Header with interval number and planned step name
+                HStack {
+                    Text("Interval \(index)")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+
+                    if let planned = mapping.plannedStep {
+                        Text(planned.displayName)
+                            .font(.caption)
+                            .foregroundColor(Color("AccentColor"))
+                    } else {
+                        Text("Unplanned")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+
+                    Spacer()
+                }
+
+                if let metrics = mapping.metrics {
+                    MetricsGrid(metrics: metrics)
+                } else {
+                    Text("No data recorded")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding()
+            .background(Color(.systemGray6))
+            .cornerRadius(8)
+        }
+
+        // Extracted grid to reuse formatting code
+        private struct MetricsGrid: View {
+            let metrics: ActivityMetrics
+
+            var body: some View {
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                    if let duration = metrics.duration {
+                        MetricItem(title: "Duration", value: formatDuration(duration), icon: "clock")
+                    }
+                    if let calories = metrics.calories {
+                        MetricItem(title: "Calories", value: "\(Int(calories)) kcal", icon: "flame")
+                    }
+                    if let distance = metrics.distance {
+                        MetricItem(title: "Distance", value: formatDistance(distance), icon: "location")
+                    }
+                    if let pace = metrics.pace {
+                        MetricItem(title: "Pace", value: formatPace(pace), icon: "speedometer")
+                    }
+                    if let avgHR = metrics.avgHR {
+                        MetricItem(title: "Avg HR", value: "\(Int(avgHR)) bpm", icon: "heart")
+                    }
+                    if let minHR = metrics.minHR, let maxHR = metrics.maxHR {
+                        MetricItem(title: "HR Range", value: "\(Int(minHR))-\(Int(maxHR))", icon: "arrow.up.arrow.down")
+                    }
+                }
+            }
+
+            private func formatDuration(_ duration: TimeInterval) -> String {
+                let minutes = Int(duration) / 60
+                let seconds = Int(duration) % 60
+                return String(format: "%d:%02d", minutes, seconds)
+            }
+
+            private func formatDistance(_ distance: Double) -> String {
+                if distance >= 1000 {
+                    return String(format: "%.2f km", distance / 1000)
+                } else {
+                    return String(format: "%.0f m", distance)
+                }
+            }
+
+            private func formatPace(_ pace: Double) -> String {
+                let minutes = Int(pace) / 60
+                let seconds = Int(pace) % 60
+                return String(format: "%d:%02d /km", minutes, seconds)
             }
         }
     }
@@ -352,9 +192,16 @@ struct WorkoutView: View {
             
             // Load activity metrics
             activityMetrics = await healthManager.fetchActivityMetrics(for: workout)
-            
+
             // Try to match with existing workout plans
             matchedActivitySession = workoutManager.findMatchingActivitySession(for: workout)
+
+            // Build mapping between plan steps and recorded intervals
+            if let session = matchedActivitySession {
+                intervalMappings = session.mapMetricsToPlan(for: workout.workoutActivityType, metrics: activityMetrics)
+            } else {
+                intervalMappings = []
+            }
             
         } catch {
             print("Error loading workout details: \(error)")
@@ -408,6 +255,39 @@ struct WorkoutView: View {
             return active + 30
         }
         return nil
+    }
+
+    // Dynamically build the list of available metrics so the grid has no empty spaces.
+    private var workoutMetrics: [(title: String, value: String)] {
+        var items: [(String, String)] = []
+
+        // Always-present metrics
+        items.append(("Workout Time", formatDuration(workout.duration)))
+        items.append(("Elapsed Time", formatDuration(workout.duration + 42)))
+
+        // Conditional metrics
+        if let distance = workout.totalDistance?.doubleValue(for: .meter()) {
+            items.append(("Distance", formatDistanceForDisplay(distance)))
+        }
+        if let activeCalories = getActiveCalories() {
+            items.append(("Active Calories", "\(Int(activeCalories))CAL"))
+        }
+        if let totalCalories = getTotalCalories() {
+            items.append(("Total Calories", "\(Int(totalCalories))CAL"))
+        }
+
+        // Placeholder until cadence is available from data source
+        items.append(("Avg. Cadence", "148SPM"))
+
+        if let distance = workout.totalDistance?.doubleValue(for: .meter()), distance > 0 {
+            let pace = workout.duration / (distance / 1000)
+            items.append(("Avg. Pace", formatPaceForDisplay(pace)))
+        }
+        if let avgHR = calculateAverageHeartRate() {
+            items.append(("Avg. Heart Rate", "\(Int(avgHR))BPM"))
+        }
+
+        return items
     }
 }
 
@@ -718,11 +598,6 @@ struct IntervalRowView: View {
                         .font(.subheadline)
                         .fontWeight(.medium)
                         .foregroundColor(Color("AccentColor"))
-                } else {
-                    Text("--")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundColor(Color("AccentColor"))
                 }
                 
                 Spacer()
@@ -738,11 +613,6 @@ struct IntervalRowView: View {
                    distance > 0 {
                     let pace = workout.duration / (distance / 1000)
                     Text(formatPaceForDisplay(pace))
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundColor(Color("AccentColor"))
-                } else {
-                    Text("--")
                         .font(.subheadline)
                         .fontWeight(.medium)
                         .foregroundColor(Color("AccentColor"))

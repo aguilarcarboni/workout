@@ -53,7 +53,6 @@ class HealthManager: ObservableObject {
             guard let self = self,
                   let workouts = samples as? [HKWorkout] else { return }
             DispatchQueue.main.async {
-                print(workouts)
                 self.workouts = workouts
             }
         }
@@ -152,7 +151,6 @@ class HealthManager: ObservableObject {
                             }
                             */
                         }
-                        print("\n\n")
                     }
                     
                     // Cooldown
@@ -187,7 +185,11 @@ class HealthManager: ObservableObject {
     func fetchActivityMetrics(for workout: HKWorkout) async -> [ActivityMetrics] {
         guard !workout.workoutActivities.isEmpty else { return [] }
         var results: [ActivityMetrics] = []
-        for activity in workout.workoutActivities {
+
+        // Ensure activities are processed in reverse chronological order
+        let activities = workout.workoutActivities.sorted { $0.startDate > $1.startDate }
+
+        for activity in activities {
 
             let calories = activity.statistics(for: HKQuantityType(.activeEnergyBurned))?.sumQuantity()?.doubleValue(for: .kilocalorie())
             let distance = activity.statistics(for: HKQuantityType(.distanceWalkingRunning))?.sumQuantity()?.doubleValue(for: .meter())

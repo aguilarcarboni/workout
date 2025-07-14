@@ -60,7 +60,6 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
             
             do {
                 try await notificationCenter.add(request)
-                print("Workout notification scheduled successfully")
             } catch {
                 print("Failed to send workout notification: \(error.localizedDescription)")
             }

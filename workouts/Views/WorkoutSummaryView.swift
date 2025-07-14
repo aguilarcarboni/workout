@@ -10,6 +10,7 @@ struct WorkoutSummaryView: View {
     @State private var heartRateData: [Double] = []
     @State private var activityMetrics: [ActivityMetrics] = []
     @State private var matchedActivitySession: ActivitySession?
+    @State private var intervalMappings: [IntervalMapping] = []
     @State private var aiEnhancedSummary = ""
     @State private var isGenerating = true
     
@@ -56,27 +57,6 @@ struct WorkoutSummaryView: View {
         
         let instructions = """
         You are a fitness coach and data analyst.
-
-        You must return your answer formatted using valid Markdown syntax ONLY.
-
-        Formatting requirements:
-        - Use `###` for section titles (like `### Key Highlights`)
-        - Use `**bold**` for metric labels (like `**Calories Burned:** 550 kcal`)
-        - Use `-` for bullet points
-        - Use proper line breaks between paragraphs
-        - DO NOT use emojis, special symbols, or rich text formatting — only valid Markdown syntax
-
-        Example:
-        ### Key Highlights
-
-        - **Duration:** 1h 30m  
-        - **Calories Burned:** 550 kcal
-
-        ### Areas for Improvement
-
-        - Try to increase time spent in high HR zones
-
-        Analyze the workout data and provide insights in exactly this Markdown format.
         """
         
         let prompt = """
@@ -92,11 +72,8 @@ struct WorkoutSummaryView: View {
             // Log the raw output for debugging
             print("AI RAW OUTPUT:\n\(response.content)")
             
-            // Clean up the AI output if it's not proper Markdown
-            let cleanedSummary = cleanupAIMarkdown(response.content)
-            
             await MainActor.run {
-                aiEnhancedSummary = cleanedSummary
+                aiEnhancedSummary = response.content
             }
         } catch {
             await MainActor.run {
@@ -117,6 +94,13 @@ struct WorkoutSummaryView: View {
             
             // Try to match with existing workout plans
             matchedActivitySession = workoutManager.findMatchingActivitySession(for: workout)
+
+            // Build mapping between actual metrics and planned steps (filtered to this activity type)
+            if let session = matchedActivitySession {
+                intervalMappings = session.mapMetricsToPlan(for: workout.workoutActivityType, metrics: activityMetrics)
+            } else {
+                intervalMappings = []
+            }
             
             // Generate summary text for AI processing
             summaryText = generateSummaryText()
@@ -166,10 +150,7 @@ struct WorkoutSummaryView: View {
         if let avgHR = calculateAverageHeartRate() {
             summary += "Average Heart Rate: \(Int(avgHR)) bpm\n"
         }
-        
-        // Heart rate data
-        summary += "\nHEART RATE DATA\n"
-        summary += "---------------\n"
+
         if heartRateData.isEmpty {
             summary += "No heart rate data available\n"
         } else {
@@ -180,89 +161,51 @@ struct WorkoutSummaryView: View {
             summary += "Total Measurements: \(heartRateData.count)\n"
         }
         
-        // Activity metrics
-        if !activityMetrics.isEmpty {
-            summary += "\nACTIVITY INTERVALS (\(activityMetrics.count))\n"
-            summary += "========================\n"
-            
-            for (index, metrics) in activityMetrics.enumerated() {
-                summary += "\nInterval \(index + 1):\n"
-                summary += "  Time: \(formatTime(metrics.startDate)) - \(formatTime(metrics.endDate))\n"
-                
-                if let duration = metrics.duration {
-                    summary += "  Duration: \(formatDuration(duration))\n"
-                }
-                if let calories = metrics.calories {
-                    summary += "  Calories: \(Int(calories)) kcal\n"
-                }
-                if let distance = metrics.distance {
-                    summary += "  Distance: \(formatDistance(distance))\n"
-                }
-                if let pace = metrics.pace {
-                    summary += "  Pace: \(formatPace(pace))\n"
-                }
-                if let avgHR = metrics.avgHR {
-                    summary += "  Average HR: \(Int(avgHR)) bpm\n"
-                }
-                if let minHR = metrics.minHR, let maxHR = metrics.maxHR {
-                    summary += "  HR Range: \(Int(minHR))-\(Int(maxHR)) bpm\n"
+        // Combined workout plan + actual metrics
+        if !intervalMappings.isEmpty {
+            summary += "\nDETAILED WORKOUT (Plan vs Actual)\n"
+            summary += "=================================\n"
+
+            for mapping in intervalMappings {
+                // Planned step name or extra work indicator
+                let plannedLabel: String = {
+                    if let planned = mapping.plannedStep {
+                        return planned.displayName
+                    } else {
+                        return "Extra / Unplanned"
+                    }
+                }()
+
+                summary += "\n• \(plannedLabel)\n"
+
+                if let metrics = mapping.metrics {
+                    summary += "   Time: \(formatTime(metrics.startDate)) - \(formatTime(metrics.endDate))\n"
+
+                    if let duration = metrics.duration {
+                        summary += "   Duration: \(formatDuration(duration))\n"
+                    }
+                    if let calories = metrics.calories {
+                        summary += "   Calories: \(Int(calories)) kcal\n"
+                    }
+                    if let distance = metrics.distance {
+                        summary += "   Distance: \(formatDistance(distance))\n"
+                    }
+                    if let pace = metrics.pace {
+                        summary += "   Pace: \(formatPace(pace))\n"
+                    }
+                    if let avgHR = metrics.avgHR {
+                        summary += "   Avg HR: \(Int(avgHR)) bpm\n"
+                    }
+                    if let minHR = metrics.minHR, let maxHR = metrics.maxHR {
+                        summary += "   HR Range: \(Int(minHR))-\(Int(maxHR)) bpm\n"
+                    }
+                } else {
+                    summary += "   Status: Planned but not completed.\n"
                 }
             }
         }
-        
-        // Matched workout plan
-        if let matchedSession = matchedActivitySession {
-            summary += "\nMATCHED WORKOUT PLAN\n"
-            summary += "====================\n"
-            summary += "Plan: \(matchedSession.displayName)\n"
-            
-            if !matchedSession.targetMetrics.isEmpty {
-                summary += "Target Metrics: \(matchedSession.targetMetrics.map { $0.rawValue }.joined(separator: ", "))\n"
-            }
-            
-            if !matchedSession.targetMuscles.isEmpty {
-                summary += "Target Muscles: \(matchedSession.targetMuscles.map { $0.rawValue }.joined(separator: ", "))\n"
-            }
-            
-            summary += "Activity Groups: \(matchedSession.activityGroups.count)\n"
-            
-            for (groupIndex, group) in matchedSession.activityGroups.enumerated() {
-                summary += "\nActivity Group \(groupIndex + 1):\n"
-                summary += "  Activity: \(group.activity.displayName)\n"
-                summary += "  Location: \(group.location.displayName)\n"
-                summary += "  Workouts: \(group.workouts.count)\n"
-                
-                for (workoutIndex, workout) in group.workouts.enumerated() {
-                    summary += "\n  Workout \(workoutIndex + 1):\n"
-                    if let workoutType = workout.workoutType {
-                        summary += "    Type: \(workoutType.rawValue)\n"
-                    }
-                    if workout.iterations > 1 {
-                        summary += "    Sets: \(workout.iterations)\n"
-                    }
-                    if !workout.targetMetrics.isEmpty {
-                        summary += "    Target Metrics: \(workout.targetMetrics.map { $0.rawValue }.joined(separator: ", "))\n"
-                    }
-                    if !workout.targetMuscles.isEmpty {
-                        summary += "    Target Muscles: \(workout.targetMuscles.map { $0.rawValue }.joined(separator: ", "))\n"
-                    }
-                    
-                    summary += "    Exercises:\n"
-                    for (exerciseIndex, exercise) in workout.exercises.enumerated() {
-                        summary += "      • \(exercise.displayName) - \(goalDescription(exercise.goal))\n"
-                        
-                        if exerciseIndex < workout.restPeriods.count {
-                            let rest = workout.restPeriods[exerciseIndex]
-                            summary += "        Rest: \(rest.displayName) - \(goalDescription(rest.goal))\n"
-                        }
-                    }
-                }
-            }
-        } else {
-            summary += "\nCUSTOM WORKOUT PLAN\n"
-            summary += "===================\n"
-            summary += "No custom workout plan applied\n"
-        }
+
+        print("Summary: \(summary)")
         
         return summary
     }

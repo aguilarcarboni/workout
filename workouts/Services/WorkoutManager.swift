@@ -620,6 +620,105 @@ class Workout: RepeatableComponent, WorkoutKitConvertible {
     }
 }
 
+// MARK: - PlannedStep & Flattening Helpers
+
+/// Represents one planned interval step (either work or rest) extracted from a workout plan.
+enum PlannedStep {
+    case work(Exercise)
+    case rest(Rest)
+
+    /// Human-readable name (e.g. "Deadlift" or "Rest")
+    var displayName: String {
+        switch self {
+        case .work(let exercise):
+            return exercise.displayName
+        case .rest(let rest):
+            return rest.displayName
+        }
+    }
+}
+
+extension Workout {
+    /// Produces the exact sequence of work/rest steps **including iterations** so that the
+    /// resulting array aligns one-to-one with the IntervalSteps sent to WorkoutKit.
+    func flattenedSteps() -> [PlannedStep] {
+        var steps: [PlannedStep] = []
+
+        guard !exercises.isEmpty else { return steps }
+
+        for _ in 0..<max(iterations, 1) {
+            for i in 0..<exercises.count {
+                steps.append(.work(exercises[i]))
+                if i < restPeriods.count {
+                    steps.append(.rest(restPeriods[i]))
+                }
+            }
+        }
+
+        return steps
+    }
+}
+
+extension ActivitySession {
+    /// Concatenates flattened steps from all workouts *in declared order*.
+    func flattenedSteps() -> [PlannedStep] {
+        activityGroups.flatMap { group in
+            group.workouts.flatMap { $0.flattenedSteps() }
+        }
+    }
+
+    /// Flattened steps restricted to a specific HKWorkoutActivityType (useful for sub-workouts of a multi-activity session).
+    func flattenedSteps(for activityType: HKWorkoutActivityType) -> [PlannedStep] {
+        activityGroups
+            .filter { $0.activity == activityType }
+            .flatMap { group in
+                group.workouts.flatMap { $0.flattenedSteps() }
+            }
+    }
+
+    /// Pair each ActivityMetrics (chronological) with its matching planned step.
+    /// If there are extra recorded intervals or unfinished steps, the pair’s optionals capture that.
+    func mapMetricsToPlan(_ metrics: [ActivityMetrics]) -> [IntervalMapping] {
+        let orderedMetrics = metrics.sorted { $0.startDate < $1.startDate }
+        let plannedSteps = flattenedSteps()
+
+        let maxCount = max(orderedMetrics.count, plannedSteps.count)
+
+        var mappings: [IntervalMapping] = []
+        for index in 0..<maxCount {
+            let metric = index < orderedMetrics.count ? orderedMetrics[index] : nil
+            let step   = index < plannedSteps.count   ? plannedSteps[index]   : nil
+            mappings.append(IntervalMapping(index: index + 1, metrics: metric, plannedStep: step))
+        }
+        return mappings
+    }
+
+    /// Same as mapMetricsToPlan(_:) but limit both metrics and plan to a particular activity type.
+    func mapMetricsToPlan(for activityType: HKWorkoutActivityType, metrics: [ActivityMetrics]) -> [IntervalMapping] {
+        let filteredMetrics = metrics
+            .filter { $0.activity.workoutConfiguration.activityType == activityType }
+            .sorted { $0.startDate < $1.startDate }
+
+        let plannedSteps = flattenedSteps(for: activityType)
+
+        let maxCount = max(filteredMetrics.count, plannedSteps.count)
+        var mappings: [IntervalMapping] = []
+        for idx in 0..<maxCount {
+            let metric = idx < filteredMetrics.count ? filteredMetrics[idx] : nil
+            let step   = idx < plannedSteps.count   ? plannedSteps[idx]   : nil
+            mappings.append(IntervalMapping(index: idx + 1, metrics: metric, plannedStep: step))
+        }
+        return mappings
+    }
+}
+
+/// Holds the association between a recorded interval and the plan step it corresponds to (if any).
+struct IntervalMapping {
+    let index: Int
+    let metrics: ActivityMetrics?
+    let plannedStep: PlannedStep?
+}
+
 /**
  * Warmup: A preparation phase to ready the body for main workout
  * 
@@ -909,29 +1008,58 @@ class WorkoutManager {
     
     private init() {}
     
-    // Load all sessions from SwiftData and create defaults if none exist
+    // Load all sessions from SwiftData and ensure defaults are present
     func loadSessions(from context: ModelContext) {
         do {
-            // Load all sessions
+            // Fetch all stored sessions ordered by creation date (newest first)
             let descriptor = FetchDescriptor<PersistentActivitySession>(
                 sortBy: [SortDescriptor(\.dateCreated, order: .reverse)]
             )
-            let persistentSessions = try context.fetch(descriptor)
-            
-            // If no sessions exist, create default ones
-            if persistentSessions.isEmpty {
-                print("No workout sessions found. Creating default sessions...")
-                createDefaultSessions(in: context)
-                // Reload after creating defaults
-                let updatedSessions = try context.fetch(descriptor)
-                processSessions(updatedSessions)
-            } else {
-                processSessions(persistentSessions)
+            var persistentSessions = try context.fetch(descriptor)
+
+            // Ensure each built-in default session exists, creating any that are missing
+            if ensureDefaultSessionsExist(in: context, existingSessions: persistentSessions) {
+                // Re-fetch after inserting newly created sessions so we have an up-to-date list
+                persistentSessions = try context.fetch(descriptor)
             }
-            
+
+            // Convert and categorise the final list of sessions
+            processSessions(persistentSessions)
+
         } catch {
             print("Error loading sessions: \(error)")
         }
+    }
+
+    // Ensure that every default ActivitySession (including mind & body) exists in the store.
+    // Any missing default is created and inserted. Returns true if new sessions were created.
+    private func ensureDefaultSessionsExist(in context: ModelContext, existingSessions: [PersistentActivitySession]) -> Bool {
+        // Build a quick lookup of already stored session names to avoid duplicates
+        let existingNames = Set(existingSessions.map { $0.displayName })
+
+        // Compose the full list of default sessions we expect to ship with the app
+        let defaultSessions: [ActivitySession] = createDefaultActivitySessions() + createDefaultMindAndBodySessions()
+
+        var didCreate = false
+
+        for session in defaultSessions where !existingNames.contains(session.displayName) {
+            let persistent = session.toPersistentModel()
+            persistent.isPrebuilt = true
+            context.insert(persistent)
+            didCreate = true
+        }
+
+        // Persist any inserts that occurred so they are available on the next fetch
+        if didCreate {
+            do {
+                try context.save()
+                print("Missing default workout sessions created successfully")
+            } catch {
+                print("Error saving newly created default sessions: \(error)")
+            }
+        }
+
+        return didCreate
     }
     
     // Helper method to process and categorize sessions
@@ -1054,13 +1182,6 @@ class WorkoutManager {
         let openRest = Rest()
         let timedRest = Rest(goal: .time(30, .seconds))
         
-        let cycling = Exercise(movement: .cycling, goal: .time(300, .seconds), alert: .heartRate(zone: 2))
-        let cardioWarmupWorkout = Workout(
-            exercises: [cycling],
-            restPeriods: [],
-            workoutType: .warmup
-        )
-        
         let adductors = Exercise(movement: .adductors, goal: .open)
         let abductors = Exercise(movement: .abductors, goal: .open)
         let hipWarmupWorkout = Workout(
@@ -1096,7 +1217,7 @@ class WorkoutManager {
         
         return ActivitySession(
             activityGroups: [
-                ActivityGroup(activity: .traditionalStrengthTraining, location: .indoor, workouts: [cardioWarmupWorkout, hipWarmupWorkout, squatWorkout, deadliftWorkout, stabilityWorkout])
+                ActivityGroup(activity: .traditionalStrengthTraining, location: .indoor, workouts: [hipWarmupWorkout, squatWorkout, deadliftWorkout, stabilityWorkout])
             ],
             displayName: "Lower Body"
         )

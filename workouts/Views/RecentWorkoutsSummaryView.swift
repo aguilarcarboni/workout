@@ -7,6 +7,7 @@ struct RecentWorkoutsSummaryView: View {
     let workouts: [HKWorkout]
     @StateObject private var healthManager = HealthManager.shared
     @State private var heartRateData: [Double] = []
+    @State private var intervalMappingsArray: [[IntervalMapping]] = []
     @State private var isGenerating = true
     @State private var aiEnhancedSummary = ""
     
@@ -51,19 +52,33 @@ struct RecentWorkoutsSummaryView: View {
 
         // Fetch heart-rate samples for every workout
         var allHR: [Double] = []
+        var allMappings: [[IntervalMapping]] = []
+
         for workout in workouts {
             do {
+                // Heart rate
                 let hr = try await healthManager.fetchHeartRateData(for: workout)
                 allHR.append(contentsOf: hr)
+
+                // Activity metrics + plan mapping
+                let metrics = await healthManager.fetchActivityMetrics(for: workout)
+                let matched = WorkoutManager.shared.findMatchingActivitySession(for: workout)
+                if let session = matched {
+                    let mappings = session.mapMetricsToPlan(for: workout.workoutActivityType, metrics: metrics)
+                    allMappings.append(mappings)
+                } else {
+                    allMappings.append([])
+                }
             } catch {
-                // Ignore error for individual workout, continue with others
                 print("Heart rate fetch error: \(error)")
+                allMappings.append([])
             }
         }
 
         // Publish heart-rate data on the main actor so the view can react
         await MainActor.run {
             heartRateData = allHR
+            intervalMappingsArray = allMappings
         }
 
         // Generate the textual summary now that heart-rate data is available
@@ -131,6 +146,22 @@ struct RecentWorkoutsSummaryView: View {
             }
             if let dist = workout.totalDistance?.doubleValue(for: .meter()) {
                 summary += "  Distance: \(formatDistance(dist))\n"
+            }
+
+            // Include plan vs actual details
+            let mappings = (index < intervalMappingsArray.count) ? intervalMappingsArray[index] : []
+            if !mappings.isEmpty {
+                summary += "  Intervals: \(mappings.count)\n"
+                for mapping in mappings {
+                    let plannedName = mapping.plannedStep?.displayName ?? "Extra / Unplanned"
+                    summary += "    • \(plannedName) - "
+                    if let duration = mapping.metrics?.duration {
+                        summary += "\(formatDuration(duration))"
+                    } else {
+                        summary += "not completed"
+                    }
+                    summary += "\n"
+                }
             }
             summary += "\n"
         }
