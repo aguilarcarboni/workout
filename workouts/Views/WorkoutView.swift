@@ -26,7 +26,7 @@ struct WorkoutView: View {
                 if let matchedSession = matchedActivitySession {
                     matchedWorkoutPlanSection(matchedSession)
                 } else {
-                    Text("Hi!")
+                    Text("No matched workout plan found.")
                 }
             }
             .padding()
@@ -38,8 +38,8 @@ struct WorkoutView: View {
                 Button {
                     showingSummary = true
                 } label: {
-                    Image(systemName: "square.and.arrow.up")
-                        .foregroundColor(.primary)
+                    Image(systemName: "text.append")
+                        .foregroundColor(Color("AccentColor"))
                 }
             }
         }

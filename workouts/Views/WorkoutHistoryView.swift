@@ -37,9 +37,10 @@ struct WorkoutHistoryView: View {
                 }
             }
             .sheet(isPresented: $showingSummary) {
-                if let mostRecentWorkout = healthManager.workouts.first {
+                let recentWorkouts = Array(healthManager.workouts.prefix(5))
+                if !recentWorkouts.isEmpty {
                     NavigationView {
-                        WorkoutSummaryView(workout: mostRecentWorkout)
+                        RecentWorkoutsSummaryView(workouts: recentWorkouts)
                     }
                 }
             }

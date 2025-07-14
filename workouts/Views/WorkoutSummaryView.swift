@@ -10,104 +10,30 @@ struct WorkoutSummaryView: View {
     @State private var heartRateData: [Double] = []
     @State private var activityMetrics: [ActivityMetrics] = []
     @State private var matchedActivitySession: ActivitySession?
-    @State private var isLoadingDetails = true
-    @State private var summaryText = ""
     @State private var aiEnhancedSummary = ""
-    @State private var isGeneratingAI = false
+    @State private var isGenerating = true
     
     @available(iOS 26.0, *)
     private var model: SystemLanguageModel {
         SystemLanguageModel.default
     }
     
-    private var formattedAISummary: AttributedString {
-        do {
-            // Simple approach: just use the markdown as-is
-            return try AttributedString(markdown: aiEnhancedSummary)
-        } catch {
-            // Fallback to plain text if markdown parsing fails
-            return AttributedString(aiEnhancedSummary)
-        }
-    }
-    
-    private func cleanupAIMarkdown(_ rawText: String) -> String {
-        var cleaned = rawText
-        
-        // Fix common section headers that AI might generate incorrectly
-        cleaned = cleaned
-            .replacingOccurrences(of: "Key Performance Highlights and Achievements", with: "### Key Highlights")
-            .replacingOccurrences(of: "Areas for Improvement or Optimization", with: "\n### Areas for Improvement")
-            .replacingOccurrences(of: "Training Insights and Patterns", with: "\n### Training Insights")
-            .replacingOccurrences(of: "Recommendations for Future Workouts", with: "\n### Recommendations")
-            .replacingOccurrences(of: "Performance Highlights", with: "### Performance Highlights")
-            .replacingOccurrences(of: "Key Highlights", with: "### Key Highlights")
-            .replacingOccurrences(of: "Workout Analysis", with: "### Workout Analysis")
-        
-        // Fix common metric patterns - add bold formatting if missing
-        let metricsPatterns = [
-            ("Endurance Excellence:", "**Endurance Excellence:**"),
-            ("Calorie Burn:", "**Calorie Burn:**"),
-            ("Heart Rate Management:", "**Heart Rate Management:**"),
-            ("Pace Consistency:", "**Pace Consistency:**"),
-            ("Distance:", "**Distance:**"),
-            ("Duration:", "**Duration:**"),
-            ("Calories:", "**Calories:**"),
-            ("Average Heart Rate:", "**Average Heart Rate:**"),
-            ("Interval Structure:", "**Interval Structure:**"),
-            ("Cool Down Strategies:", "**Cool Down Strategies:**"),
-            ("Intensity Peaks:", "**Intensity Peaks:**"),
-            ("Heart Rate Zones:", "**Heart Rate Zones:**"),
-            ("Introduce Interval Training:", "**Introduce Interval Training:**"),
-            ("Incorporate", "**Incorporate")
-        ]
-        
-        for (pattern, replacement) in metricsPatterns {
-            cleaned = cleaned.replacingOccurrences(of: pattern, with: replacement)
-        }
-        
-        // Ensure proper spacing after headers
-        cleaned = cleaned
-            .replacingOccurrences(of: "###", with: "\n###")
-            .replacingOccurrences(of: "\n\n###", with: "\n###") // Remove duplicate newlines
-        
-        // Clean up multiple consecutive newlines
-        while cleaned.contains("\n\n\n") {
-            cleaned = cleaned.replacingOccurrences(of: "\n\n\n", with: "\n\n")
-        }
-        
-        return cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-    
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                if isLoadingDetails {
-                    ProgressView("Loading workout summary...")
+                if isGenerating {
+                    ProgressView("Generating workout summary...")
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding()
-                } else if isGeneratingAI {
-                    VStack(spacing: 16) {
-                        ProgressView("Generating AI summary...")
-                            .frame(maxWidth: .infinity, alignment: .center)
-                        
-                        Text("Analyzing your workout data with Apple Intelligence...")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
-                    .padding()
                 } else {
                     // AI Summary Display
                     if !aiEnhancedSummary.isEmpty {
-                        ScrollView {
-                            CustomMarkdownView(text: aiEnhancedSummary)
-                                .padding()
-                                .background(Color(.systemGray6))
-                                .cornerRadius(8)
-                        }
+                        Text(aiEnhancedSummary)
+                            .padding()
+                            .background(Color(.systemGray6))
+                            .cornerRadius(8)
                     } else {
-                        // Fallback if AI is not available
-                        aiUnavailableSection
+                        ContentUnavailableView("No AI summary available", systemImage: "sparkles")
                     }
                 }
             }
@@ -115,89 +41,17 @@ struct WorkoutSummaryView: View {
         }
         .navigationTitle("Workout Summary")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                if #available(iOS 26.0, *), model.availability == .available {
-                    Button {
-                        Task {
-                            await performAIGeneration()
-                        }
-                    } label: {
-                        Image(systemName: "arrow.clockwise")
-                            .foregroundColor(Color("AccentColor"))
-                    }
-                    .disabled(isGeneratingAI)
-                }
-            }
-        }
         .task {
             await loadWorkoutDetails()
         }
     }
     
-    private var aiUnavailableSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: "exclamationmark.triangle")
-                    .foregroundColor(.orange)
-                
-                Text("AI Summary Unavailable")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                
-                Spacer()
-            }
-            
-            if #available(iOS 26.0, *) {
-                switch model.availability {
-                case .available:
-                    // This shouldn't happen, but just in case
-                    Text("AI is available but summary generation failed")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    
-                case .unavailable(.deviceNotEligible):
-                    Text("Apple Intelligence is not supported on this device")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    
-                case .unavailable(.appleIntelligenceNotEnabled):
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Apple Intelligence is not enabled")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Text("Turn on Apple Intelligence in Settings to generate AI summaries")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                case .unavailable(.modelNotReady):
-                    Text("AI model is downloading... Please try again later")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    
-                case .unavailable(let other):
-                    Text("AI unavailable: \(String(describing: other))")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            } else {
-                Text("AI summaries require iOS 26.0 or later")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-        }
-        .padding()
-        .background(Color(.systemGray6))
-        .cornerRadius(8)
-    }
-    
     @available(iOS 26.0, *)
-    private func performAIGeneration() async {
+    private func performAIGeneration(summaryText: String) async {
         guard model.availability == .available else { return }
         
         await MainActor.run {
-            isGeneratingAI = true
+            isGenerating = true
         }
         
         let instructions = """
@@ -243,17 +97,17 @@ struct WorkoutSummaryView: View {
             
             await MainActor.run {
                 aiEnhancedSummary = cleanedSummary
-                isGeneratingAI = false
             }
         } catch {
             await MainActor.run {
                 aiEnhancedSummary = "Error generating AI summary: \(error.localizedDescription)"
-                isGeneratingAI = false
             }
         }
     }
     
     private func loadWorkoutDetails() async {
+        await MainActor.run { isGenerating = true }
+        var summaryText = ""
         do {
             // Load heart rate data
             heartRateData = try await healthManager.fetchHeartRateData(for: workout)
@@ -265,21 +119,20 @@ struct WorkoutSummaryView: View {
             matchedActivitySession = workoutManager.findMatchingActivitySession(for: workout)
             
             // Generate summary text for AI processing
-            generateSummaryText()
+            summaryText = generateSummaryText()
             
         } catch {
             summaryText = "Error loading workout details: \(error.localizedDescription)"
         }
-        
-        isLoadingDetails = false
-        
         // Automatically start AI generation after loading data
         if #available(iOS 26.0, *) {
-            await performAIGeneration()
+            await performAIGeneration(summaryText: summaryText)
         }
+
+        await MainActor.run { isGenerating = false }
     }
     
-    private func generateSummaryText() {
+    private func generateSummaryText() -> String {
         var summary = ""
         
         // Header information
@@ -411,7 +264,7 @@ struct WorkoutSummaryView: View {
             summary += "No custom workout plan applied\n"
         }
         
-        summaryText = summary
+        return summary
     }
     
     private func calculateAverageHeartRate() -> Double? {
@@ -476,79 +329,3 @@ struct WorkoutSummaryView: View {
         }
     }
 }
-
-struct CustomMarkdownView: View {
-    let text: String
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ForEach(parsedContent, id: \.id) { element in
-                element.view
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-    
-    private var parsedContent: [MarkdownElement] {
-        let lines = text.components(separatedBy: .newlines)
-        var elements: [MarkdownElement] = []
-        
-        for line in lines {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            
-            if trimmed.isEmpty {
-                // Skip empty lines - spacing will be handled by VStack
-                continue
-            } else if trimmed.hasPrefix("### ") {
-                // Header
-                let headerText = String(trimmed.dropFirst(4))
-                elements.append(MarkdownElement(
-                    id: UUID(),
-                    view: AnyView(
-                        Text(headerText)
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .foregroundColor(Color("AccentColor"))
-                            .padding(.top, 8)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    )
-                ))
-            } else {
-                // Regular text with bold formatting
-                elements.append(MarkdownElement(
-                    id: UUID(),
-                    view: AnyView(
-                        Text(parseInlineMarkdown(trimmed))
-                            .font(.body)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    )
-                ))
-            }
-        }
-        
-        return elements
-    }
-    
-    private func parseInlineMarkdown(_ text: String) -> AttributedString {
-        do {
-            return try AttributedString(markdown: text)
-        } catch {
-            return AttributedString(text)
-        }
-    }
-}
-
-struct MarkdownElement {
-    let id: UUID
-    let view: AnyView
-}
-
-#Preview {
-    NavigationView {
-        WorkoutSummaryView(workout: HKWorkout(
-            activityType: .running,
-            start: Date().addingTimeInterval(-3600),
-            end: Date()
-        ))
-    }
-} 
