@@ -16,18 +16,30 @@ struct WorkoutView: View {
     @State private var showingFullPlan = false
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                dateHeader
+        List {
+
+            // Workout details grid section
+            Section(header: Text("Workout Details")) {
                 workoutDetailsSection
-                if !activityMetrics.isEmpty && !intervalMappings.isEmpty {
-                    activityMetricsSection
+            }
+            .listSectionSeparator(.hidden)
+
+            // Activity intervals shown as a list
+            if !activityMetrics.isEmpty && !intervalMappings.isEmpty {
+                Section(
+                    header: Text("Activity Intervals")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                ) {
+                    // Data rows – one per recorded/planned interval
+                    ForEach(intervalMappings, id: \.index) { mapping in
+                        IntervalMetricsRowView(mapping: mapping)
+                    }
                 }
             }
-            .padding()
         }
+        .listStyle(.insetGrouped)
         .navigationTitle(workout.workoutActivityType.name)
-        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button {
@@ -63,124 +75,14 @@ struct WorkoutView: View {
     }
     
     private var workoutDetailsSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Text("Workout Details")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-            }
-            
-            // Main workout metrics grid – two columns that automatically fill
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
-                ForEach(Array(workoutMetrics.enumerated()), id: \.offset) { _, metric in
-                    WorkoutMetricView(
-                        title: metric.title,
-                        value: metric.value,
-                        color: Color("AccentColor")
-                    )
-                }
-            }
-            .padding(20)
-            .background(Color(.systemGray6))
-            .cornerRadius(12)
-        }
-    }
-
-    private var activityMetricsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Activity Intervals (\(intervalMappings.count))")
-                .font(.headline)
-                .fontWeight(.semibold)
-
-            ForEach(Array(intervalMappings.enumerated()), id: \.offset) { index, mapping in
-                IntervalMappingCard(mapping: mapping, index: index + 1)
-            }
-        }
-    }
-
-    private struct IntervalMappingCard: View {
-        let mapping: IntervalMapping
-        let index: Int
-
-        var body: some View {
-            VStack(alignment: .leading, spacing: 8) {
-                // Header with interval number and planned step name
-                HStack {
-                    Text("Interval \(index)")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-
-                    if let planned = mapping.plannedStep {
-                        Text(planned.displayName)
-                            .font(.caption)
-                            .foregroundColor(Color("AccentColor"))
-                    } else {
-                        Text("Unplanned")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-
-                    Spacer()
-                }
-
-                if let metrics = mapping.metrics {
-                    MetricsGrid(metrics: metrics)
-                } else {
-                    Text("No data recorded")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-            .padding()
-            .background(Color(.systemGray6))
-            .cornerRadius(8)
-        }
-
-        // Extracted grid to reuse formatting code
-        private struct MetricsGrid: View {
-            let metrics: ActivityMetrics
-
-            var body: some View {
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
-                    if let duration = metrics.duration {
-                        MetricItem(title: "Duration", value: formatDuration(duration), icon: "clock")
-                    }
-                    if let calories = metrics.calories {
-                        MetricItem(title: "Calories", value: "\(Int(calories)) kcal", icon: "flame")
-                    }
-                    if let distance = metrics.distance {
-                        MetricItem(title: "Distance", value: formatDistance(distance), icon: "location")
-                    }
-                    if let pace = metrics.pace {
-                        MetricItem(title: "Pace", value: formatPace(pace), icon: "speedometer")
-                    }
-                    if let avgHR = metrics.avgHR {
-                        MetricItem(title: "Avg HR", value: "\(Int(avgHR)) bpm", icon: "heart")
-                    }
-                    if let minHR = metrics.minHR, let maxHR = metrics.maxHR {
-                        MetricItem(title: "HR Range", value: "\(Int(minHR))-\(Int(maxHR))", icon: "arrow.up.arrow.down")
-                    }
-                }
-            }
-
-            private func formatDuration(_ duration: TimeInterval) -> String {
-                let minutes = Int(duration) / 60
-                let seconds = Int(duration) % 60
-                return String(format: "%d:%02d", minutes, seconds)
-            }
-
-            private func formatDistance(_ distance: Double) -> String {
-                if distance >= 1000 {
-                    return String(format: "%.2f km", distance / 1000)
-                } else {
-                    return String(format: "%.0f m", distance)
-                }
-            }
-
-            private func formatPace(_ pace: Double) -> String {
-                let minutes = Int(pace) / 60
-                let seconds = Int(pace) % 60
-                return String(format: "%d:%02d /km", minutes, seconds)
+        // Main workout metrics grid – two columns that automatically fill
+        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
+            ForEach(Array(workoutMetrics.enumerated()), id: \.offset) { _, metric in
+                WorkoutMetricView(
+                    title: metric.title,
+                    value: metric.value,
+                    color: Color("AccentColor")
+                )
             }
         }
     }
@@ -640,6 +542,58 @@ struct IntervalRowView: View {
         let minutes = Int(pace) / 60
         let seconds = Int(pace) % 60
         return String(format: "%d'%02d\"", minutes, seconds)
+    }
+}
+
+// Add Fitness-style interval table header
+struct IntervalMetricsHeaderView: View {
+    var body: some View {
+        HStack {
+            // Empty spacer matching the width of the interval label column
+            Text("")
+                .frame(width: 60, alignment: .leading)
+
+            Spacer()
+
+            Text("Time")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .frame(maxWidth: .infinity, alignment: .center)
+        }
+        .padding(.horizontal)
+    }
+}
+
+// Add Fitness-style interval row
+struct IntervalMetricsRowView: View {
+    let mapping: IntervalMapping
+
+    var body: some View {
+        HStack {
+            // Interval label (either planned step name or generic index)
+            Text(mapping.plannedStep?.displayName ?? "Interval \(mapping.index)")
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .frame(width: .infinity, alignment: .leading)
+
+            Spacer()
+
+            // Duration
+            Text(formattedDuration)
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundColor(Color("AccentColor"))
+                .frame(maxWidth: 100, alignment: .center)
+        }
+        .padding(.horizontal)
+    }
+
+    // MARK: – Helpers
+    private var formattedDuration: String {
+        guard let duration = mapping.metrics?.duration else { return "--" }
+        let minutes = Int(duration) / 60
+        let seconds = Int(duration) % 60
+        return String(format: "%d:%02d", minutes, seconds)
     }
 }
 

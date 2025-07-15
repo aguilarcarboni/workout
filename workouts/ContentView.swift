@@ -15,19 +15,13 @@ struct ContentView: View {
                 Label("Workout", systemImage: "figure.strengthtraining.traditional")
             }
             .tag(0)
-
-            MindAndBodySessionsView()
-            .tabItem {
-                Label("Meditate", systemImage: "figure.mind.and.body")
-            }
-            .tag(1)
             
             WorkoutHistoryView()
             .tabItem {
                 Label("History", systemImage: "clock.arrow.circlepath")
             }
-            .tag(2)
+            .tag(1)
         }
-        .accentColor(selectedTab == 0 || selectedTab == 2 ? Color.accentColor : Color("SecondaryAccentColor"))
+        .accentColor(Color.accentColor)
     }
 }
