@@ -3,11 +3,134 @@ import UserNotifications
 import SwiftData
 import WorkoutKit
 import HealthKit
+import SwiftUI
 
-// MARK: - Core Enums
+extension WorkoutGoal {
+    /// Human-readable description for display purposes.
+    var description: String {
+        switch self {
+        case .time(let duration, _):
+            return formatDuration(duration)
+        case .distance(let distance, let unit):
+            return String(format: "%.1f %@", distance, unit.symbol)
+        case .open:
+            return "No goal"
+        @unknown default:
+            return "Unknown goal"
+        }
+    }
+}
+
+public extension WorkoutAlert {
+    /// System SF-Symbol representing the alert.
+    var iconName: String {
+        switch self {
+        case is HeartRateRangeAlert, is HeartRateZoneAlert:
+            return "heart.fill"
+        case is PowerRangeAlert, is PowerThresholdAlert, is PowerZoneAlert:
+            return "bolt.fill"
+        case is CadenceRangeAlert, is CadenceThresholdAlert:
+            return "figure.run"
+        case is SpeedRangeAlert, is SpeedThresholdAlert:
+            return "speedometer"
+        default:
+            return "bell.fill"
+        }
+    }
+
+    /// Tint colour associated with the alert type.
+    var tintColor: Color {
+        switch self {
+        case is HeartRateRangeAlert, is HeartRateZoneAlert:
+            return .red
+        case is PowerRangeAlert, is PowerThresholdAlert, is PowerZoneAlert:
+            return .orange
+        case is CadenceRangeAlert, is CadenceThresholdAlert:
+            return .green
+        case is SpeedRangeAlert, is SpeedThresholdAlert:
+            return .blue
+        default:
+            return .gray
+        }
+    }
+
+    /// Concise textual description summarising the alert target/range.
+    var description: String {
+        switch self {
+        case let alert as HeartRateRangeAlert:
+            let lower = alert.target.lowerBound.value
+            let upper = alert.target.upperBound.value
+            return "Heart Rate: \(Int(lower))-\(Int(upper)) BPM"
+        case let alert as HeartRateZoneAlert:
+            return "Heart Rate Zone: \(alert.zone)"
+        case let alert as PowerRangeAlert:
+            let lower = alert.target.lowerBound.value
+            let upper = alert.target.upperBound.value
+            return "Power: \(Int(lower))-\(Int(upper)) W"
+        case let alert as PowerThresholdAlert:
+            return "Power: \(Int(alert.target.value)) W"
+        case let alert as PowerZoneAlert:
+            return "Power Zone: \(alert.zone)"
+        case let alert as CadenceRangeAlert:
+            let lower = alert.target.lowerBound.value
+            let upper = alert.target.upperBound.value
+            return "Cadence: \(Int(lower))-\(Int(upper)) RPM"
+        case let alert as CadenceThresholdAlert:
+            return "Cadence: \(Int(alert.target.value)) RPM"
+        case let alert as SpeedRangeAlert:
+            let lower = alert.target.lowerBound.value
+            let upper = alert.target.upperBound.value
+            return "Speed: \(String(format: "%.1f", lower))-\(String(format: "%.1f", upper)) \(alert.target.lowerBound.unit.symbol)"
+        case let alert as SpeedThresholdAlert:
+            return "Speed: \(String(format: "%.1f", alert.target.value)) \(alert.target.unit.symbol)"
+        default:
+            return "Target Zone Alert"
+        }
+    }
+}
+
+/// Protocol for any component that can be converted to WorkoutKit types
+protocol WorkoutKitConvertible {
+    associatedtype WorkoutKitType
+    func toWorkoutKitType() -> WorkoutKitType
+}
+
+/// Protocol for workout components that have goals and can be tracked
+protocol TrackableComponent {
+    var displayName: String { get }
+    var goal: WorkoutGoal { get }
+}
+
+/// Protocol for components that can have iterations/repetitions
+protocol RepeatableComponent {
+    var iterations: Int { get }
+}
+
+/// Represents one planned interval step (either work or rest) extracted from a workout plan.
+enum PlannedStep {
+    case work(Exercise)
+    case rest(Rest)
+
+    /// Human-readable name (e.g. "Deadlift" or "Rest")
+    var displayName: String {
+        switch self {
+        case .work(let exercise):
+            return exercise.displayName
+        case .rest(let rest):
+            return rest.displayName
+        }
+    }
+}
+
+/// Holds the association between a recorded interval and the plan step it corresponds to (if any).
+struct IntervalMapping {
+    let index: Int
+    let metrics: ActivityMetrics?
+    let plannedStep: PlannedStep?
+}
 
 /**
- * FitnessMetric: The different aspects of fitness that can be improved
+ * Fitness Metrics: The different aspects of fitness that can be improved
  */
 enum FitnessMetric: String, CaseIterable {
     case strength = "Strength"
@@ -22,8 +145,31 @@ enum FitnessMetric: String, CaseIterable {
     case mobility = "Mobility"
 }
 
+extension FitnessMetric {
+    /// Defines a canonical visual ordering for fitness metrics when displayed in the UI.
+    static let uiDisplayOrder: [FitnessMetric] = [
+        .strength,
+        .power,
+        .speed,
+        .endurance,
+        .aerobicEndurance,
+        .anaerobicEndurance,
+        .muscularEndurance,
+        .stability,
+        .mobility,
+        .agility
+    ]
+
+    /// Comparison helper suitable for `sorted(by:)`.
+    static func defaultOrder(_ lhs: FitnessMetric, _ rhs: FitnessMetric) -> Bool {
+        let lhsIndex = uiDisplayOrder.firstIndex(of: lhs) ?? uiDisplayOrder.count
+        let rhsIndex = uiDisplayOrder.firstIndex(of: rhs) ?? uiDisplayOrder.count
+        return lhsIndex < rhsIndex
+    }
+}
+
 /**
- * Muscle: The different muscle groups and body parts that can be targeted
+ * Muscle: The different groups and body parts that can be targeted
  */
 enum Muscle: String, CaseIterable {
     // Core muscles
@@ -53,7 +199,7 @@ enum Muscle: String, CaseIterable {
 }
 
 /**
- * Movement: The physical movements that can be performed
+ * Movement: The physical movements that can be performed with muscles
  */
 enum Movement: String, CaseIterable {
     // Upper body movements
@@ -357,55 +503,7 @@ enum Movement: String, CaseIterable {
 }
 
 /**
- * WorkoutType: Different categories/types of workouts
- */
-enum WorkoutType: String, CaseIterable {
-    // Basic types
-    case warmup = "Warmup"
-    case cooldown = "Cooldown"
-    case strengthWorkout = "Strength Workout"
-    case enduranceWorkout = "Endurance Workout"
-    case stabilityWorkout = "Stability Workout"
-    
-    // Specific warmup types
-    case dynamicWarmup = "Dynamic Warmup"
-    case functionalWarmup = "Functional Warmup"
-    
-    // Specific strength types
-    case functionalStrengthWorkout = "Functional Strength Workout"
-    
-    // Specific endurance types
-    case muscularEnduranceWorkout = "Muscular Endurance Workout"
-    case aerobicEnduranceWorkout = "Aerobic Endurance Workout"
-    case anaerobicEnduranceWorkout = "Anaerobic Endurance Workout"
-    
-    // Specific stability types
-    case functionalStabilityWorkout = "Functional Stability Workout"
-}
-
-// MARK: - Protocols
-
-/// Protocol for any component that can be converted to WorkoutKit types
-protocol WorkoutKitConvertible {
-    associatedtype WorkoutKitType
-    func toWorkoutKitType() -> WorkoutKitType
-}
-
-/// Protocol for workout components that have goals and can be tracked
-protocol TrackableComponent {
-    var displayName: String { get }
-    var goal: WorkoutGoal { get }
-}
-
-/// Protocol for components that can have iterations/repetitions
-protocol RepeatableComponent {
-    var iterations: Int { get }
-}
-
-// MARK: - Core Fitness Types
-
-/**
- * Exercise: A physical or mental activity that an athlete can do to improve their fitness metrics
+ * Exercise: A movement that an athlete can do to improve their fitness metrics
  * 
  * Maps to WorkoutKit: IntervalStep (.work type)
  * - Defines the actual work being performed
@@ -447,7 +545,7 @@ class Exercise: TrackableComponent, WorkoutKitConvertible {
 }
 
 /**
- * Rest: A physical or mental rest that an athlete can do between exercises
+ * Rest: A type of exercise that an athlete can do between exercises to recover
  * 
  * Maps to WorkoutKit: IntervalStep (.recovery type)
  * - Defines recovery periods between work intervals
@@ -474,6 +572,34 @@ class Rest: TrackableComponent, WorkoutKitConvertible {
     func toIntervalStep() -> IntervalStep {
         return toWorkoutKitType()
     }
+}
+
+
+/**
+ * WorkoutType: Different categories/types of workouts
+ */
+enum WorkoutType: String, CaseIterable {
+    // Basic types
+    case warmup = "Warmup"
+    case cooldown = "Cooldown"
+    case strengthWorkout = "Strength Workout"
+    case enduranceWorkout = "Endurance Workout"
+    case stabilityWorkout = "Stability Workout"
+    
+    // Specific warmup types
+    case dynamicWarmup = "Dynamic Warmup"
+    case functionalWarmup = "Functional Warmup"
+    
+    // Specific strength types
+    case functionalStrengthWorkout = "Functional Strength Workout"
+    
+    // Specific endurance types
+    case muscularEnduranceWorkout = "Muscular Endurance Workout"
+    case aerobicEnduranceWorkout = "Aerobic Endurance Workout"
+    case anaerobicEnduranceWorkout = "Anaerobic Endurance Workout"
+    
+    // Specific stability types
+    case functionalStabilityWorkout = "Functional Stability Workout"
 }
 
 /**
@@ -640,25 +766,17 @@ class Workout: RepeatableComponent, WorkoutKitConvertible {
     }
 }
 
-// MARK: - PlannedStep & Flattening Helpers
-
-/// Represents one planned interval step (either work or rest) extracted from a workout plan.
-enum PlannedStep {
-    case work(Exercise)
-    case rest(Rest)
-
-    /// Human-readable name (e.g. "Deadlift" or "Rest")
-    var displayName: String {
-        switch self {
-        case .work(let exercise):
-            return exercise.displayName
-        case .rest(let rest):
-            return rest.displayName
-        }
-    }
-}
-
 extension Workout {
+    /// Returns the Exercise corresponding to a given IntervalStep index produced by `toWorkoutKitType()`.
+    /// Assumes exercises and rest periods alternate (work, rest, work, rest, ...).
+    func exerciseForStepIndex(_ stepIndex: Int) -> Exercise? {
+        let exerciseIndex = stepIndex / 2
+        if stepIndex % 2 == 0 && exerciseIndex < exercises.count {
+            return exercises[exerciseIndex]
+        }
+        return nil
+    }
+
     /// Produces the exact sequence of work/rest steps **including iterations** so that the
     /// resulting array aligns one-to-one with the IntervalSteps sent to WorkoutKit.
     func flattenedSteps() -> [PlannedStep] {
@@ -676,126 +794,6 @@ extension Workout {
         }
 
         return steps
-    }
-}
-
-extension ActivitySession {
-    /// Concatenates flattened steps from all workouts *in declared order*.
-    func flattenedSteps() -> [PlannedStep] {
-        activityGroups.flatMap { group in
-            group.workouts.flatMap { $0.flattenedSteps() }
-        }
-    }
-
-    /// Flattened steps restricted to a specific HKWorkoutActivityType (useful for sub-workouts of a multi-activity session).
-    func flattenedSteps(for activityType: HKWorkoutActivityType) -> [PlannedStep] {
-        activityGroups
-            .filter { $0.activity == activityType }
-            .flatMap { group in
-                group.workouts.flatMap { $0.flattenedSteps() }
-            }
-    }
-
-    /// Pair each ActivityMetrics (chronological) with its matching planned step.
-    /// If there are extra recorded intervals or unfinished steps, the pair’s optionals capture that.
-    func mapMetricsToPlan(_ metrics: [ActivityMetrics]) -> [IntervalMapping] {
-        let orderedMetrics = metrics.sorted { $0.startDate < $1.startDate }
-        let plannedSteps = flattenedSteps()
-
-        let maxCount = max(orderedMetrics.count, plannedSteps.count)
-
-        var mappings: [IntervalMapping] = []
-        for index in 0..<maxCount {
-            let metric = index < orderedMetrics.count ? orderedMetrics[index] : nil
-            let step   = index < plannedSteps.count   ? plannedSteps[index]   : nil
-            mappings.append(IntervalMapping(index: index + 1, metrics: metric, plannedStep: step))
-        }
-        return mappings
-    }
-
-    /// Same as mapMetricsToPlan(_:) but limit both metrics and plan to a particular activity type.
-    func mapMetricsToPlan(for activityType: HKWorkoutActivityType, metrics: [ActivityMetrics]) -> [IntervalMapping] {
-        let filteredMetrics = metrics
-            .filter { $0.activity.workoutConfiguration.activityType == activityType }
-            .sorted { $0.startDate < $1.startDate }
-
-        let plannedSteps = flattenedSteps(for: activityType)
-
-        let maxCount = max(filteredMetrics.count, plannedSteps.count)
-        var mappings: [IntervalMapping] = []
-        for idx in 0..<maxCount {
-            let metric = idx < filteredMetrics.count ? filteredMetrics[idx] : nil
-            let step   = idx < plannedSteps.count   ? plannedSteps[idx]   : nil
-            mappings.append(IntervalMapping(index: idx + 1, metrics: metric, plannedStep: step))
-        }
-        return mappings
-    }
-}
-
-/// Holds the association between a recorded interval and the plan step it corresponds to (if any).
-struct IntervalMapping {
-    let index: Int
-    let metrics: ActivityMetrics?
-    let plannedStep: PlannedStep?
-}
-
-/**
- * Warmup: A preparation phase to ready the body for main workout
- * 
- * Maps to WorkoutKit: Collection of IntervalBlocks (via contained workouts)
- * - Prepares the body for the main training
- * - Usually lower intensity than main workout
- * - Can contain multiple workout components
- */
-class Warmup: WorkoutKitConvertible {
-    typealias WorkoutKitType = [IntervalBlock]
-    
-    let workouts: [Workout]
-    let displayName: String
-    
-    init(workouts: [Workout], displayName: String = "Warmup") {
-        self.workouts = workouts
-        self.displayName = displayName
-    }
-    
-    /// Converts this Warmup to WorkoutKit IntervalBlocks
-    func toWorkoutKitType() -> [IntervalBlock] {
-        return workouts.map { $0.toWorkoutKitType() }
-    }
-    
-    /// Legacy method name for backward compatibility
-    func toIntervalBlocks() -> [IntervalBlock] {
-        return toWorkoutKitType()
-    }
-}
-
-/**
- * Cooldown: A recovery phase to help the body recover after main workout
- * 
- * Maps to WorkoutKit: Collection of IntervalBlocks (via contained workouts)
- * - Helps the body transition from high activity to rest
- * - Usually lower intensity recovery movements
- * - Can contain multiple workout components
- */
-class Cooldown: WorkoutKitConvertible {
-    typealias WorkoutKitType = [IntervalBlock]
-    
-    let workouts: [Workout]
-    let displayName: String
-    
-    init(workouts: [Workout], displayName: String = "Cooldown") {
-        self.workouts = workouts
-        self.displayName = displayName
-    }
-    
-    /// Converts this Cooldown to WorkoutKit IntervalBlocks
-    func toWorkoutKitType() -> [IntervalBlock] {
-        return workouts.map { $0.toWorkoutKitType() }
-    }
-    
-    /// Legacy method name for backward compatibility
-    func toIntervalBlocks() -> [IntervalBlock] {
-        return toWorkoutKitType()
     }
 }
 
@@ -954,7 +952,58 @@ class ActivitySession: WorkoutKitConvertible, Identifiable, ObservableObject {
     }
 }
 
-// MARK: - Session Abstraction Layer
+extension ActivitySession {
+    /// Concatenates flattened steps from all workouts *in declared order*.
+    func flattenedSteps() -> [PlannedStep] {
+        activityGroups.flatMap { group in
+            group.workouts.flatMap { $0.flattenedSteps() }
+        }
+    }
+
+    /// Flattened steps restricted to a specific HKWorkoutActivityType (useful for sub-workouts of a multi-activity session).
+    func flattenedSteps(for activityType: HKWorkoutActivityType) -> [PlannedStep] {
+        activityGroups
+            .filter { $0.activity == activityType }
+            .flatMap { group in
+                group.workouts.flatMap { $0.flattenedSteps() }
+            }
+    }
+
+    /// Pair each ActivityMetrics (chronological) with its matching planned step.
+    /// If there are extra recorded intervals or unfinished steps, the pair’s optionals capture that.
+    func mapMetricsToPlan(_ metrics: [ActivityMetrics]) -> [IntervalMapping] {
+        let orderedMetrics = metrics.sorted { $0.startDate < $1.startDate }
+        let plannedSteps = flattenedSteps()
+
+        let maxCount = max(orderedMetrics.count, plannedSteps.count)
+
+        var mappings: [IntervalMapping] = []
+        for index in 0..<maxCount {
+            let metric = index < orderedMetrics.count ? orderedMetrics[index] : nil
+            let step   = index < plannedSteps.count   ? plannedSteps[index]   : nil
+            mappings.append(IntervalMapping(index: index + 1, metrics: metric, plannedStep: step))
+        }
+        return mappings
+    }
+
+    /// Same as mapMetricsToPlan(_:) but limit both metrics and plan to a particular activity type.
+    func mapMetricsToPlan(for activityType: HKWorkoutActivityType, metrics: [ActivityMetrics]) -> [IntervalMapping] {
+        let filteredMetrics = metrics
+            .filter { $0.activity.workoutConfiguration.activityType == activityType }
+            .sorted { $0.startDate < $1.startDate }
+
+        let plannedSteps = flattenedSteps(for: activityType)
+
+        let maxCount = max(filteredMetrics.count, plannedSteps.count)
+        var mappings: [IntervalMapping] = []
+        for idx in 0..<maxCount {
+            let metric = idx < filteredMetrics.count ? filteredMetrics[idx] : nil
+            let step   = idx < plannedSteps.count   ? plannedSteps[idx]   : nil
+            mappings.append(IntervalMapping(index: idx + 1, metrics: metric, plannedStep: step))
+        }
+        return mappings
+    }
+}
 
 /**
  * WorkoutSession: A wrapper around ActivitySession for regular workout sessions
