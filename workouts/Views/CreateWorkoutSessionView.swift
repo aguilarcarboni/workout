@@ -6,10 +6,9 @@ import HealthKit
 // MARK: - Create Workout Session View
 
 struct CreateWorkoutSessionView: View {
+    let onSave: ((ActivitySession) -> Void)?
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    let onSave: ((ActivitySession) -> Void)?
-    
     @State private var sequenceName = ""
     @State private var activityGroups: [ActivityGroup] = []
     @State private var showingActivityGroupCreator = false
@@ -385,7 +384,7 @@ struct CreateWorkoutView: View {
             VStack(alignment: .leading) {
                 Text(exercises[index].movement.rawValue)
                     .font(.headline)
-                Text(goalDescription(exercises[index].goal))
+                Text(exercises[index].goal.description)
                     .font(.caption)
                     .foregroundColor(.secondary)
                 
@@ -430,21 +429,6 @@ struct CreateWorkoutView: View {
                         .foregroundColor(.secondary)
                 }
             }
-        }
-    }
-    
-    private func goalDescription(_ goal: WorkoutGoal) -> String {
-        switch goal {
-        case .time(let duration, _):
-            let minutes = Int(duration) / 60
-            let seconds = Int(duration) % 60
-            return "Goal: \(String(format: "%02d:%02d", minutes, seconds))"
-        case .distance(let distance, let unit):
-            return "Goal: \(String(format: "%.1f %@", distance, unit.symbol))"
-        case .open:
-            return "Goal: Open"
-        @unknown default:
-            return "Goal: Unknown"
         }
     }
 }
@@ -645,14 +629,3 @@ struct CreateExerciseView: View {
         }
     }
 }
-
-#Preview {
-    CreateWorkoutSessionView(onSave: nil)
-        .modelContainer(for: [
-            PersistentActivitySession.self,
-            PersistentActivityGroup.self,
-            PersistentWorkout.self,
-            PersistentExercise.self,
-            PersistentRest.self
-        ], inMemory: true)
-} 

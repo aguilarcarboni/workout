@@ -10,42 +10,7 @@ struct RecentWorkoutsSummaryView: View {
     @State private var intervalMappingsArray: [[IntervalMapping]] = []
     @State private var isGenerating = true
     @State private var aiEnhancedSummary = ""
-    
-    @available(iOS 26.0, *)
-    private var model: SystemLanguageModel {
-        SystemLanguageModel.default
-    }
-    
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                if isGenerating {
-                    VStack(spacing: 16) {
-                        ProgressView("Generating AI summary...")
-                            .frame(maxWidth: .infinity, alignment: .center)
-                    }
-                    .padding()
-                } else {
-                    if !aiEnhancedSummary.isEmpty {
-                        Text(aiEnhancedSummary)
-                            .padding()
-                            .background(Color(.systemGray6))
-                            .cornerRadius(8)
-                    } else {
-                        ContentUnavailableView("No AI summary available", systemImage: "sparkles")
-                    }
-                }
-            }
-            .padding()
-        }
-        .navigationTitle("Last \(workouts.count) Workouts")
-        .navigationBarTitleDisplayMode(.inline)
-        .task {
-            await loadDetails()
-        }
-    }
-    
-    // MARK: - Data Loading
+
     private func loadDetails() async {
         // Start loading – show progress indicator
         await MainActor.run { isGenerating = true }
@@ -125,7 +90,7 @@ struct RecentWorkoutsSummaryView: View {
         summary += "Total Calories: \(Int(totalCalories)) kcal\n"
         summary += "Total Distance: \(formatDistance(totalDistance))\n"
         
-        if let avgHR = calculateAverageHeartRate() {
+        if let avgHR = heartRateData.averageHeartRate() {
             summary += "Average Heart Rate: \(Int(avgHR)) bpm\n"
         }
         
@@ -166,6 +131,11 @@ struct RecentWorkoutsSummaryView: View {
             summary += "\n"
         }
         return summary
+    }
+
+    @available(iOS 26.0, *)
+    private var model: SystemLanguageModel {
+        SystemLanguageModel.default
     }
     
     // MARK: - AI Generation
@@ -216,34 +186,33 @@ struct RecentWorkoutsSummaryView: View {
         }
     }
     
-    // MARK: - Helper Functions
-    private func calculateAverageHeartRate() -> Double? {
-        guard !heartRateData.isEmpty else { return nil }
-        return heartRateData.reduce(0, +) / Double(heartRateData.count)
-    }
-    
-    private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        return formatter.string(from: date)
-    }
-    
-    private func formatDuration(_ duration: TimeInterval) -> String {
-        let hours = Int(duration) / 3600
-        let minutes = Int(duration) % 3600 / 60
-        let seconds = Int(duration) % 60
-        if hours > 0 {
-            return String(format: "%d:%02d:%02d", hours, minutes, seconds)
-        } else {
-            return String(format: "%d:%02d", minutes, seconds)
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                if isGenerating {
+                    VStack(spacing: 16) {
+                        ProgressView("Generating AI summary...")
+                            .frame(maxWidth: .infinity, alignment: .center)
+                    }
+                    .padding()
+                } else {
+                    if !aiEnhancedSummary.isEmpty {
+                        Text(aiEnhancedSummary)
+                            .padding()
+                            .background(Color(.systemGray6))
+                            .cornerRadius(8)
+                    } else {
+                        ContentUnavailableView("No AI summary available", systemImage: "sparkles")
+                    }
+                }
+            }
+            .padding()
+        }
+        .navigationTitle("Last \(workouts.count) Workouts")
+        .navigationBarTitleDisplayMode(.inline)
+        .task {
+            await loadDetails()
         }
     }
-    
-    private func formatDistance(_ distance: Double) -> String {
-        if distance >= 1000 {
-            return String(format: "%.2f km", distance / 1000)
-        } else {
-            return String(format: "%.0f m", distance)
-        }
-    }
+
 }

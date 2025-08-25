@@ -1,5 +1,6 @@
 import SwiftUI
 import HealthKit
+import Foundation
 
 struct WorkoutHistoryView: View {
     @StateObject private var healthManager = HealthManager.shared
@@ -70,22 +71,4 @@ struct WorkoutRowView: View {
         }
         .padding(.vertical, 2)
     }
-    
-    private func formatDuration(_ duration: TimeInterval) -> String {
-        let minutes = Int(duration) / 60
-        let seconds = Int(duration) % 60
-        return String(format: "%d:%02d", minutes, seconds)
-    }
-    
-    private func formatDistance(_ distance: Double) -> String {
-        if distance >= 1000 {
-            return String(format: "%.1f km", distance / 1000)
-        } else {
-            return String(format: "%.0f m", distance)
-        }
-    }
 }
-
-#Preview {
-    WorkoutHistoryView()
-} 

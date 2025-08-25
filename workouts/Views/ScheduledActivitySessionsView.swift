@@ -7,6 +7,35 @@ struct ScheduledActivitySessionsView: View {
     @State private var workoutScheduler: WorkoutScheduler = .shared
     @State private var isLoading = true
     
+    private func loadScheduledWorkouts() async {
+        isLoading = true
+        scheduledWorkouts = await workoutScheduler.scheduledWorkouts
+        isLoading = false
+    }
+    
+    private func markComplete(_ scheduledWorkout: ScheduledWorkoutPlan) {
+        Task {
+            await workoutScheduler.markComplete(
+                scheduledWorkout.plan,
+                at: scheduledWorkout.date
+            )
+            await loadScheduledWorkouts()
+        }
+    }
+    
+    private func removeWorkout(at offsets: IndexSet) {
+        let workoutsToRemove = offsets.map { scheduledWorkouts[$0] }
+        Task {
+            for workout in workoutsToRemove {
+                await workoutScheduler.remove(
+                    workout.plan,
+                    at: workout.date
+                )
+            }
+            await loadScheduledWorkouts()
+        }
+    }
+
     var body: some View {
         NavigationStack {
             Group {
@@ -54,35 +83,7 @@ struct ScheduledActivitySessionsView: View {
             }
         }
     }
-    
-    private func loadScheduledWorkouts() async {
-        isLoading = true
-        scheduledWorkouts = await workoutScheduler.scheduledWorkouts
-        isLoading = false
-    }
-    
-    private func markComplete(_ scheduledWorkout: ScheduledWorkoutPlan) {
-        Task {
-            await workoutScheduler.markComplete(
-                scheduledWorkout.plan,
-                at: scheduledWorkout.date
-            )
-            await loadScheduledWorkouts()
-        }
-    }
-    
-    private func removeWorkout(at offsets: IndexSet) {
-        let workoutsToRemove = offsets.map { scheduledWorkouts[$0] }
-        Task {
-            for workout in workoutsToRemove {
-                await workoutScheduler.remove(
-                    workout.plan,
-                    at: workout.date
-                )
-            }
-            await loadScheduledWorkouts()
-        }
-    }
+
 }
 
 struct ScheduledWorkoutRow: View {

@@ -5,10 +5,10 @@ import WorkoutKit
 struct WorkoutSessionsView: View {
 
     @Environment(\.modelContext) private var modelContext
+    @State var workoutManager: WorkoutManager = .shared
     @State private var selectedWorkoutSession: ActivitySession?
     @State private var showingCreateForm = false
     @State private var showingScheduledWorkouts = false
-    @State var workoutManager: WorkoutManager = .shared
     
     var body: some View {
         NavigationStack {
@@ -155,14 +155,3 @@ struct WorkoutSessionRow: View {
         .buttonStyle(.plain)
     }
 }
-
-#Preview {
-    WorkoutSessionsView()
-        .modelContainer(for: [
-            PersistentActivitySession.self,
-            PersistentActivityGroup.self,
-            PersistentWorkout.self,
-            PersistentExercise.self,
-            PersistentRest.self
-        ], inMemory: true)
-} 

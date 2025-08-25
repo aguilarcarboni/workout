@@ -41,32 +41,48 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
         }
     }
 
-    func sendWorkoutNotification(scheduledWorkoutPlan: ScheduledWorkoutPlan) {
-        Task {
+    // MARK: - Generic Notification API
+    /// Schedule a local notification with given content and trigger.
+    /// - Parameters:
+    ///   - title: Title shown in the banner/alert.
+    ///   - body:  Body text shown below the title.
+    ///   - trigger: When the notification should fire.
+    @MainActor
+    func sendNotification(title: String, body: String, trigger: UNNotificationTrigger) async {
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body  = body
+        content.sound = .default
 
-            let content = UNMutableNotificationContent()
-            content.title = "Workout Scheduled for today"
-            content.body = "It's time to do your \(scheduledWorkoutPlan.plan.workout.activity.name) workout!"
-            content.sound = .default
-            
-            // Schedule the notification for 5 seconds in the future
-            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 5, repeats: false)
-            
-            let request = UNNotificationRequest(
-                identifier: UUID().uuidString,
-                content: content,
-                trigger: trigger // Use the time interval trigger
-            )
-            
-            do {
-                try await notificationCenter.add(request)
-            } catch {
-                print("Failed to send workout notification: \(error.localizedDescription)")
-            }
+        let request = UNNotificationRequest(
+            identifier: UUID().uuidString,
+            content: content,
+            trigger: trigger
+        )
+
+        do {
+            try await notificationCenter.add(request)
+        } catch {
+            print("Failed to schedule notification: \(error.localizedDescription)")
         }
     }
-    
-    // MARK: - Notification Management
+
+    /// Convenience wrapper to send a banner after a delay (seconds from now). Default: 5s.
+    @MainActor
+    func sendNotification(title: String, body: String, after timeInterval: TimeInterval = 5) async {
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: timeInterval, repeats: false)
+        await sendNotification(title: title, body: body, trigger: trigger)
+    }
+
+    // Existing helper kept for backward compatibility (now calls generic API)
+    func sendWorkoutNotification(scheduledWorkoutPlan: ScheduledWorkoutPlan) {
+        Task {
+            let title = "Workout Scheduled for today"
+            let body  = "It's time to do your \(scheduledWorkoutPlan.plan.workout.activity.name) workout!"
+            await sendNotification(title: title, body: body, after: 5)
+        }
+    }
+
     func getNotifications() async throws -> [UNNotificationRequest] {
         return await notificationCenter.pendingNotificationRequests()
     }
@@ -75,7 +91,6 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
         notificationCenter.removeAllPendingNotificationRequests()
     }
     
-    // MARK: - UNUserNotificationCenterDelegate
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         completionHandler([.banner, .sound])
     }
@@ -83,4 +98,5 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
         completionHandler()
     }
+
 } 
