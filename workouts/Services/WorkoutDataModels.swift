@@ -3,8 +3,6 @@ import SwiftData
 import WorkoutKit
 import HealthKit
 
-// MARK: - SwiftData Models
-
 @Model
 final class PersistentActivitySession {
     var id: UUID = UUID()

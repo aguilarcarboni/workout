@@ -74,15 +74,6 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
         await sendNotification(title: title, body: body, trigger: trigger)
     }
 
-    // Existing helper kept for backward compatibility (now calls generic API)
-    func sendWorkoutNotification(scheduledWorkoutPlan: ScheduledWorkoutPlan) {
-        Task {
-            let title = "Workout Scheduled for today"
-            let body  = "It's time to do your \(scheduledWorkoutPlan.plan.workout.activity.name) workout!"
-            await sendNotification(title: title, body: body, after: 5)
-        }
-    }
-
     func getNotifications() async throws -> [UNNotificationRequest] {
         return await notificationCenter.pendingNotificationRequests()
     }
