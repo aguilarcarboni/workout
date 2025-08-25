@@ -5,8 +5,6 @@ import WorkoutKit
 import HealthKit
 import SwiftUI
 
-
-
 /// Protocol for any component that can be converted to WorkoutKit types
 protocol WorkoutKitConvertible {
     associatedtype WorkoutKitType
