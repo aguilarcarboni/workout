@@ -22,13 +22,14 @@ final class PersistentActivitySession {
     
     // Convert to runtime ActivitySession
     func toActivitySession() -> ActivitySession {
-        let runtimeGroups = (activityGroups ?? []).map { $0.toActivityGroup() }
+        let runtimeGroups = (activityGroups ?? []).sorted { ($0.orderIndex) < ($1.orderIndex) }.map { $0.toActivityGroup() }
         return ActivitySession(activityGroups: runtimeGroups, displayName: displayName)
     }
 }
 
 @Model
 final class PersistentActivityGroup {
+    var orderIndex: Int = 0
     var activityRawValue: UInt = 0
     var locationRawValue: Int = 0
     
@@ -54,7 +55,7 @@ final class PersistentActivityGroup {
     
     // Convert to runtime ActivityGroup
     func toActivityGroup() -> ActivityGroup {
-        let runtimeWorkouts = (workouts ?? []).map { $0.toWorkout() }
+        let runtimeWorkouts = (workouts ?? []).sorted { ($0.orderIndex) < ($1.orderIndex) }.map { $0.toWorkout() }
         return ActivityGroup(
             activity: activity,
             location: location,
@@ -65,6 +66,7 @@ final class PersistentActivityGroup {
 
 @Model
 final class PersistentWorkout {
+    var orderIndex: Int = 0
     var iterations: Int = 1
     var workoutTypeRawValue: String?
     
@@ -104,6 +106,7 @@ final class PersistentWorkout {
 
 @Model
 final class PersistentExercise {
+    var orderIndex: Int = 0
     var movementRawValue: String = ""
     var goalType: String = "open" // "time", "distance", "open"
     var goalValue: Double = 0
@@ -167,6 +170,7 @@ final class PersistentExercise {
 
 @Model
 final class PersistentRest {
+    var orderIndex: Int = 0
     var displayName: String = "Rest"
     var goalType: String = "open"
     var goalValue: Double = 0
@@ -230,8 +234,9 @@ extension ActivitySession {
     func toPersistentModel() -> PersistentActivitySession {
         let persistent = PersistentActivitySession(displayName: displayName, isPrebuilt: false)
         
-        for activityGroup in activityGroups {
+        for (index, activityGroup) in activityGroups.enumerated() {
             let persistentGroup = activityGroup.toPersistentModel()
+            persistentGroup.orderIndex = index
             persistentGroup.session = persistent
             if persistent.activityGroups == nil {
                 persistent.activityGroups = []
@@ -251,9 +256,10 @@ extension ActivityGroup {
             location: location
         )
         
-        for workout in workouts {
+        for (index, workout) in workouts.enumerated() {
             let persistentWorkout = workout.toPersistentModel()
             persistentWorkout.activityGroup = persistent
+            persistentWorkout.orderIndex = index
             if persistent.workouts == nil {
                 persistent.workouts = []
             }
@@ -269,18 +275,20 @@ extension Workout {
     func toPersistentModel() -> PersistentWorkout {
         let persistent = PersistentWorkout(iterations: iterations, workoutType: workoutType)
         
-        for exercise in exercises {
+        for (index, exercise) in exercises.enumerated() {
             let persistentExercise = exercise.toPersistentModel()
             persistentExercise.workout = persistent
+            persistentExercise.orderIndex = index
             if persistent.exercises == nil {
                 persistent.exercises = []
             }
             persistent.exercises?.append(persistentExercise)
         }
         
-        for rest in restPeriods {
+        for (index, rest) in restPeriods.enumerated() {
             let persistentRest = rest.toPersistentModel()
             persistentRest.workout = persistent
+            persistentRest.orderIndex = index
             if persistent.restPeriods == nil {
                 persistent.restPeriods = []
             }

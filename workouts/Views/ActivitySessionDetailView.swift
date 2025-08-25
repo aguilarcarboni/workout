@@ -124,7 +124,7 @@ struct ActivitySessionDetailView: View {
                                     Image(systemName: "target")
                                         .font(.caption2)
                                         .foregroundStyle(.secondary)
-                                    Text(workout.targetMetrics.sorted(by: FitnessMetric.defaultOrder).map { $0.rawValue }.joined(separator: ", "))
+                                    Text(workout.targetMetrics.map { $0.rawValue }.joined(separator: ", "))
                                         .font(.caption2)
                                         .foregroundStyle(.secondary)
                                         .lineLimit(1)
@@ -180,7 +180,7 @@ struct ActivitySessionDetailView: View {
                             Image(systemName: "figure.arms.open")
                                 .font(.caption2)
                                 .foregroundStyle(Color("AccentColor"))
-                            Text("\(exercise.targetMuscles.sorted { $0.rawValue < $1.rawValue }.map { $0.rawValue }.joined(separator: ", "))")
+                            Text("\(exercise.targetMuscles.map { $0.rawValue }.joined(separator: ", "))")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
@@ -192,7 +192,7 @@ struct ActivitySessionDetailView: View {
                             Image(systemName: "target")
                                 .font(.caption2)
                                 .foregroundStyle(Color("AccentColor"))
-                            Text("\(exercise.targetMetrics.sorted(by: FitnessMetric.defaultOrder).map { $0.rawValue }.joined(separator: ", "))")
+                            Text("\(exercise.targetMetrics.map { $0.rawValue }.joined(separator: ", "))")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }

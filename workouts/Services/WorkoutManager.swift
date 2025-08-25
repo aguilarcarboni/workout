@@ -545,13 +545,21 @@ class Workout: RepeatableComponent, WorkoutKitConvertible {
     /// Returns all muscles targeted by this workout
     var targetMuscles: [Muscle] {
         let allMuscles = exercises.flatMap { $0.targetMuscles }
-        return Array(Set(allMuscles)) // Remove duplicates
+        return allMuscles.reduce(into: []) { unique, muscle in
+            if !unique.contains(muscle) {
+                unique.append(muscle)
+            }
+        }
     }
     
     /// Returns all fitness metrics targeted by this workout
     var targetMetrics: [FitnessMetric] {
         let allMetrics = exercises.flatMap { $0.targetMetrics }
-        return Array(Set(allMetrics)) // Remove duplicates
+        return allMetrics.reduce(into: []) { unique, metric in
+            if !unique.contains(metric) {
+                unique.append(metric)
+            }
+        }
     }
     
     /// Converts this Workout to a WorkoutKit IntervalBlock
@@ -734,13 +742,21 @@ struct ActivityGroup {
     /// Returns all muscles targeted by this activity group
     var targetMuscles: [Muscle] {
         let allMuscles = workouts.flatMap { $0.targetMuscles }
-        return Array(Set(allMuscles)) // Remove duplicates
+        return allMuscles.reduce(into: []) { unique, muscle in
+            if !unique.contains(muscle) {
+                unique.append(muscle)
+            }
+        }
     }
     
     /// Returns all fitness metrics targeted by this activity group
     var targetMetrics: [FitnessMetric] {
         let allMetrics = workouts.flatMap { $0.targetMetrics }
-        return Array(Set(allMetrics)) // Remove duplicates
+        return allMetrics.reduce(into: []) { unique, metric in
+            if !unique.contains(metric) {
+                unique.append(metric)
+            }
+        }
     }
     
     /// Converts this ActivityGroup to a WorkoutKit CustomWorkout
@@ -826,13 +842,21 @@ class ActivitySession: WorkoutKitConvertible, Identifiable, ObservableObject {
     /// Returns all muscles targeted by this activity session
     var targetMuscles: [Muscle] {
         let allMuscles = activityGroups.flatMap { $0.targetMuscles }
-        return Array(Set(allMuscles)) // Remove duplicates
+        return allMuscles.reduce(into: []) { unique, muscle in
+            if !unique.contains(muscle) {
+                unique.append(muscle)
+            }
+        }
     }
     
     /// Returns all fitness metrics targeted by this activity session
     var targetMetrics: [FitnessMetric] {
         let allMetrics = activityGroups.flatMap { $0.targetMetrics }
-        return Array(Set(allMetrics)) // Remove duplicates
+        return allMetrics.reduce(into: []) { unique, metric in
+            if !unique.contains(metric) {
+                unique.append(metric)
+            }
+        }
     }
     
     /// Returns a detailed plain text description of the activity session
