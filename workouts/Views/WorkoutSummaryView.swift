@@ -78,11 +78,8 @@ struct WorkoutSummaryView: View {
         4. **Actionable suggestions (training, form, intensity, recovery, etc.)**
         """
         
-        let prompt = """
-        Here is a workout summary. Analyze the session and provide a performance review based on the data. Include a clear evaluation of the user's effort, any deviations from plan, and how they can optimize future sessions.
-        
-        \(summaryText)
-        """
+        let prompt = Prompt("Here is a workout summary. Analyze the session and provide a performance review based on the data. Include a clear evaluation of the user's effort, any deviations from plan, and how they can optimize future sessions. \(summaryText)")
+
         
         do {
             let session = LanguageModelSession(instructions: instructions)
