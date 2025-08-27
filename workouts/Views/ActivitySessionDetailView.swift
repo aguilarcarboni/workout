@@ -148,11 +148,17 @@ struct ActivitySessionDetailView: View {
     }
     
     private func exerciseDetailsView(for block: IntervalBlock, workout: Workout) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ForEach(Array(block.steps.enumerated()), id: \.offset) { stepIndex, step in
-                if let intervalStep = step as? IntervalStep {
-                    let exercise = workout.exerciseForStepIndex(stepIndex)
+        let steps = workout.flattenedSteps()
+
+        return VStack(alignment: .leading, spacing: 8) {
+            ForEach(Array(steps.enumerated()), id: \.offset) { _, plannedStep in
+                switch plannedStep {
+                case .work(let exercise):
+                    let intervalStep = exercise.toWorkoutKitType()
                     intervalStepView(intervalStep, exercise: exercise)
+                case .rest(let rest):
+                    let intervalStep = rest.toWorkoutKitType()
+                    intervalStepView(intervalStep, exercise: nil)
                 }
             }
         }

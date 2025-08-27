@@ -152,6 +152,12 @@ enum Movement: String, CaseIterable {
     case run = "Run"
     case sprint = "Sprint"
     case jumpRope = "Jump Rope"
+    // Dynamic warm-up movements
+    case forwardLegSwing = "Forward Leg Swing"
+    case backwardLegSwing = "Backward Leg Swing"
+    case sideLegSwing = "Side Leg Swing"
+    case bodyweightLunge = "Bodyweight Lunge"
+    case bodyweightSquat = "Bodyweight Squat"
     
     // Stretching movements
     case benchHipFlexorStretch = "Bench Hip Flexor Stretch"
@@ -241,6 +247,13 @@ enum Movement: String, CaseIterable {
         // Cardio (full body engagement)
         case .cycling, .run, .sprint, .jumpRope:
             return [.fullBody]
+        // Dynamic warm-up movements
+        case .forwardLegSwing, .backwardLegSwing, .sideLegSwing:
+            return [.hamstrings, .quadriceps, .glutes]
+        case .bodyweightLunge:
+            return [.quadriceps, .glutes, .hamstrings]
+        case .bodyweightSquat:
+            return [.quadriceps, .glutes]
             
         // Stretching
         case .benchHipFlexorStretch:
@@ -358,6 +371,11 @@ enum Movement: String, CaseIterable {
             return [.anaerobicEndurance, .speed, .power]
         case .jumpRope:
             return [.anaerobicEndurance, .agility, .speed]
+        // Dynamic warm-up movements
+        case .forwardLegSwing, .backwardLegSwing, .sideLegSwing:
+            return [.mobility, .stability]
+        case .bodyweightLunge, .bodyweightSquat:
+            return [.strength, .stability, .mobility]
             
         // Stretching
         case .benchHipFlexorStretch, .hamstringStretch, .quadricepsStretch, .calfStretch, .shoulderStretch, .neckStretch, .singleLegHamstringStretch, .doubleLegHamstringStretch, .butterflyStretch, .legOverKneeHipStretch, .footOverKneeHipStretch, .kneeToChestStretch, .windshieldWiperStretch:
@@ -1100,6 +1118,7 @@ class WorkoutManager {
     }
     
     private func createUpperBodyStrengthActivitySession() -> ActivitySession {
+
         let shortRest = Rest(goal: .time(30, .seconds))
         let openRest = Rest()
         
@@ -1153,17 +1172,9 @@ class WorkoutManager {
     }
 
     private func createLowerBodyStrengthActivitySession() -> ActivitySession {
-        
-        let timedRest = Rest(goal: .time(30, .seconds))
 
-        // Cycling warmup and main workout
-        let cyclingWarmup = Exercise(movement: .cycling, goal: .time(300, .seconds), alert: .heartRate(zone: 2))
-        let cyclingWarmupWorkout = Workout(
-            exercises: [cyclingWarmup],
-            restPeriods: [],
-            workoutType: .warmup
-        )
-        
+        // Dynamic warmup
+        let timedRest10 = Rest(goal: .time(10, .seconds))
         let openRest = Rest()
         
         let adductors = Exercise(movement: .adductors, goal: .open)
@@ -1199,21 +1210,20 @@ class WorkoutManager {
             workoutType: .functionalStabilityWorkout
         )
 
-        // Flexibility cooldown
-        let timedRest10 = Rest(goal: .time(10, .seconds))
-        
+        // Static flexibility
         let singleLegHamstringLeft = Exercise(movement: .singleLegHamstringStretch, goal: .time(30, .seconds))
         let singleLegHamstringRight = Exercise(movement: .singleLegHamstringStretch, goal: .time(30, .seconds))
         let doubleLegHamstring = Exercise(movement: .doubleLegHamstringStretch, goal: .time(30, .seconds))
         let butterfly = Exercise(movement: .butterflyStretch, goal: .time(30, .seconds))
         let legOverKneeLeft = Exercise(movement: .legOverKneeHipStretch, goal: .time(30, .seconds))
         let legOverKneeRight = Exercise(movement: .legOverKneeHipStretch, goal: .time(30, .seconds))
-        let footOverKnee = Exercise(movement: .footOverKneeHipStretch, goal: .time(30, .seconds))
-        let kneeToChest = Exercise(movement: .kneeToChestStretch, goal: .time(30, .seconds))
-        let windshieldWiper = Exercise(movement: .windshieldWiperStretch, goal: .time(30, .seconds))
-        
+        let footOverKneeLeft = Exercise(movement: .footOverKneeHipStretch, goal: .time(30, .seconds))
+        let footOverKneeRight = Exercise(movement: .footOverKneeHipStretch, goal: .time(30, .seconds))
+        let kneeToChestLeft = Exercise(movement: .kneeToChestStretch, goal: .time(30, .seconds))
+        let kneeToChestRight = Exercise(movement: .kneeToChestStretch, goal: .time(30, .seconds))
+        let windshieldWiperLeft = Exercise(movement: .windshieldWiperStretch, goal: .time(30, .seconds))
+        let windshieldWiperRight = Exercise(movement: .windshieldWiperStretch, goal: .time(30, .seconds))
         let flexibilityRestPeriods = Array(repeating: timedRest10, count: 9)
-        
         let flexibilityWorkout = Workout(
             exercises: [
                 singleLegHamstringLeft,
@@ -1222,9 +1232,12 @@ class WorkoutManager {
                 butterfly,
                 legOverKneeLeft,
                 legOverKneeRight,
-                footOverKnee,
-                kneeToChest,
-                windshieldWiper
+                footOverKneeLeft,
+                footOverKneeRight,
+                kneeToChestLeft,
+                kneeToChestRight,
+                windshieldWiperLeft,
+                windshieldWiperRight
             ],
             restPeriods: flexibilityRestPeriods,
             workoutType: .cooldown
@@ -1232,7 +1245,6 @@ class WorkoutManager {
 
         return ActivitySession(
             activityGroups: [
-                ActivityGroup(activity: .cycling, location: .indoor, workouts: [cyclingWarmupWorkout]),
                 ActivityGroup(activity: .traditionalStrengthTraining, location: .indoor, workouts: [hipWarmupWorkout, squatWorkout, deadliftWorkout, stabilityWorkout]),
                 ActivityGroup(activity: .flexibility, location: .indoor, workouts: [flexibilityWorkout])
             ],
@@ -1241,14 +1253,50 @@ class WorkoutManager {
     }
 
     private func createdMixedCardioActivitySession() -> ActivitySession {
+
+        // Rests
         let timedRest = Rest(goal: .time(30, .seconds))
-        
-        // Cycling warmup and main workout
-        let cyclingWarmup = Exercise(movement: .cycling, goal: .time(300, .seconds), alert: .heartRate(zone: 2))
-        let cyclingWarmupWorkout = Workout(
-            exercises: [cyclingWarmup],
-            restPeriods: [],
-            workoutType: .warmup
+        let timedRest10 = Rest(goal: .time(10, .seconds))
+
+        // Dynamic Warm-up
+        let leftForwardSwing = Exercise(movement: .forwardLegSwing, goal: .open)
+        let rightForwardSwing = Exercise(movement: .forwardLegSwing, goal: .open)
+        let forwardSwingWarmup = Workout(
+            exercises: [leftForwardSwing, rightForwardSwing],
+            restPeriods: [timedRest10, timedRest10],
+            workoutType: .dynamicWarmup
+        )
+
+        let leftBackwardSwing = Exercise(movement: .backwardLegSwing, goal: .open)
+        let rightBackwardSwing = Exercise(movement: .backwardLegSwing, goal: .open)
+        let backwardSwingWarmup = Workout(
+            exercises: [leftBackwardSwing, rightBackwardSwing],
+            restPeriods: [timedRest10, timedRest10],
+            workoutType: .dynamicWarmup
+        )
+
+        let leftSideSwing = Exercise(movement: .sideLegSwing, goal: .open)
+        let rightSideSwing = Exercise(movement: .sideLegSwing, goal: .open)
+        let sideSwingWarmup = Workout(
+            exercises: [leftSideSwing, rightSideSwing],
+            restPeriods: [timedRest10, timedRest10],
+            workoutType: .dynamicWarmup
+        )
+
+        let leftLunges = Exercise(movement: .bodyweightLunge, goal: .open)
+        let rightLunges = Exercise(movement: .bodyweightLunge, goal: .open)
+        let lungesWarmup = Workout(
+            exercises: [leftLunges, rightLunges],
+            restPeriods: [timedRest10, timedRest10],
+            workoutType: .dynamicWarmup
+        )
+
+        let leftSquats = Exercise(movement: .bodyweightSquat, goal: .open)
+        let rightSquats = Exercise(movement: .bodyweightSquat, goal: .open)
+        let squatsWarmup = Workout(
+            exercises: [leftSquats, rightSquats],
+            restPeriods: [timedRest10, timedRest10],
+            workoutType: .dynamicWarmup
         )
         
         // Running main workout
@@ -1267,12 +1315,38 @@ class WorkoutManager {
             iterations: 3,
             workoutType: .anaerobicEnduranceWorkout
         )
+
+        // Static flexibility
+        let singleLegHamstringLeft = Exercise(movement: .singleLegHamstringStretch, goal: .time(30, .seconds))
+        let singleLegHamstringRight = Exercise(movement: .singleLegHamstringStretch, goal: .time(30, .seconds))
+        let doubleLegHamstring = Exercise(movement: .doubleLegHamstringStretch, goal: .time(30, .seconds))
+        let butterfly = Exercise(movement: .butterflyStretch, goal: .time(30, .seconds))
+        let legOverKneeLeft = Exercise(movement: .legOverKneeHipStretch, goal: .time(30, .seconds))
+        let legOverKneeRight = Exercise(movement: .legOverKneeHipStretch, goal: .time(30, .seconds))
+        let footOverKneeLeft = Exercise(movement: .footOverKneeHipStretch, goal: .time(30, .seconds))
+        let footOverKneeRight = Exercise(movement: .footOverKneeHipStretch, goal: .time(30, .seconds))
+        let kneeToChestLeft = Exercise(movement: .kneeToChestStretch, goal: .time(30, .seconds))
+        let kneeToChestRight = Exercise(movement: .kneeToChestStretch, goal: .time(30, .seconds))
+        let windshieldWiperLeft = Exercise(movement: .windshieldWiperStretch, goal: .time(30, .seconds))
+        let windshieldWiperRight = Exercise(movement: .windshieldWiperStretch, goal: .time(30, .seconds))
+        let cooldownRestPeriods = Array(repeating: timedRest10, count: 4)
+        let flexibilityWorkout = Workout(
+            exercises: [
+                singleLegHamstringLeft,
+                singleLegHamstringRight,
+                doubleLegHamstring,
+                butterfly,
+            ],
+            restPeriods: cooldownRestPeriods,
+            workoutType: .cooldown
+        )
         
         return ActivitySession(
             activityGroups: [
-                ActivityGroup(activity: .cycling, location: .indoor, workouts: [cyclingWarmupWorkout]),
+                ActivityGroup(activity: .flexibility, location: .indoor, workouts: [forwardSwingWarmup, backwardSwingWarmup, sideSwingWarmup, lungesWarmup, squatsWarmup]),
                 ActivityGroup(activity: .running, location: .indoor, workouts: [runningWorkout]),
-                ActivityGroup(activity: .jumpRope, location: .indoor, workouts: [plyometricsWorkout])
+                ActivityGroup(activity: .jumpRope, location: .indoor, workouts: [plyometricsWorkout]),
+                ActivityGroup(activity: .cooldown, location: .indoor, workouts: [flexibilityWorkout])
             ],
             displayName: "Mixed Cardio"
         )

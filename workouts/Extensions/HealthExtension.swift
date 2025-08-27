@@ -38,6 +38,8 @@ extension HKWorkoutActivityType {
             return "Jump Rope"
         case .flexibility:
             return "Flexibility"
+        case .cooldown:
+            return "Cooldown"
         default:
             return "Workout"
         }
