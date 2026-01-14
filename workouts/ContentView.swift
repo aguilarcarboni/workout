@@ -21,6 +21,12 @@ struct ContentView: View {
                 Label("History", systemImage: "clock.arrow.circlepath")
             }
             .tag(1)
+            
+            HealthMetricsView()
+            .tabItem {
+                Label("Metrics", systemImage: "heart.text.square")
+            }
+            .tag(2)
         }
         .accentColor(Color.accentColor)
     }
